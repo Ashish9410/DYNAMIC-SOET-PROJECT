@@ -185,16 +185,26 @@
     });
 
     // ================= DATA =================
+    // All users - includes students, faculty, and admins
     let users = JSON.parse(localStorage.getItem('soet_users')) || [
-        { name: 'Alex Sterling', email: 'student@soet.edu', password: 'password123', role: 'student', rollNo: '2024CSE001' },
-        { name: 'Dr. Alaric', email: 'faculty@soet.edu', password: 'password123', role: 'faculty', rollNo: '' },
-        { name: 'Admin', email: 'admin@soet.edu', password: 'password123', role: 'admin', rollNo: '' }
+        { name: 'Admin', email: 'admin@soet.edu', password: 'password123', role: 'admin', rollNo: '' },
+        { name: 'Dr. Alaric', email: 'faculty@soet.edu', password: 'password123', role: 'faculty', rollNo: '' }
     ];
 
-    let admins = JSON.parse(localStorage.getItem('soet_admins')) || ['admin@soet.edu', 'hoda@soet.edu', 'dean@soet.edu'];
+    let admins = JSON.parse(localStorage.getItem('soet_admins')) || ['admin@soet.edu'];
     let applications = JSON.parse(localStorage.getItem('soet_applications')) || [];
     let currentUser = null;
     let isSignup = false;
+
+    // ================= TIMETABLE DATA =================
+    let timetableData = JSON.parse(localStorage.getItem('soet_timetable')) || {
+        slots: [
+            { time: '09:00 - 10:30', mon: 'DS (A-102)', tue: 'NN (A-102)', wed: 'DS (A-102)', thu: 'NN (A-102)', fri: 'DS (A-102)' },
+            { time: '11:00 - 12:30', mon: 'EH (Lab 402)', tue: 'CD (LT-2)', wed: 'EH (Lab 402)', thu: 'CD (LT-2)', fri: 'EH (Lab 402)' },
+            { time: '02:00 - 03:30', mon: 'CD (LT-2)', tue: 'DS (A-102)', wed: 'NN (A-102)', thu: 'DS (A-102)', fri: 'CD (LT-2)' }
+        ]
+    };
+    function saveTimetable() { localStorage.setItem('soet_timetable', JSON.stringify(timetableData)); }
 
     // ================= ACADEMIC CALENDAR PDF =================
     const ACADEMIC_CALENDAR_PDF_PATH = "assets/academic-calendar-2026-27.pdf";
@@ -227,11 +237,7 @@
     const subGreeting = document.getElementById('subGreeting');
     const adminPanel = document.getElementById('adminPanel');
     const adminListContainer = document.getElementById('adminListContainer');
-    const addAdminBtn = document.getElementById('addAdminBtn');
-    const newAdminInput = document.getElementById('newAdminInput');
-    const resetAdminBtn = document.getElementById('resetAdminBtn');
 
-    // Application form refs
     const applyOverlay = document.getElementById('applyOverlay');
     const applyForm = document.getElementById('applyForm');
     const applyName = document.getElementById('applyName');
@@ -247,6 +253,15 @@
     const applySuccess = document.getElementById('applySuccess');
     const applyError = document.getElementById('applyError');
     const applySubmitBtn = document.getElementById('applySubmitBtn');
+
+    const adminEmailInput = document.getElementById('adminEmailInput');
+    const adminPasswordInput = document.getElementById('adminPasswordInput');
+    const addAdminBtn = document.getElementById('addAdminBtn');
+    const resetAdminBtn = document.getElementById('resetAdminBtn');
+
+    const saveTimetableBtn = document.getElementById('saveTimetableBtn');
+    const resetTimetableBtn = document.getElementById('resetTimetableBtn');
+    const addTimeSlotBtn = document.getElementById('addTimeSlotBtn');
 
     // ================= COURSE DATA =================
     const courses = {
@@ -323,35 +338,18 @@
     function saveAdmins() { localStorage.setItem('soet_admins', JSON.stringify(admins)); }
     function saveApplications() { localStorage.setItem('soet_applications', JSON.stringify(applications)); }
 
-    function renderAdmins() {
-        adminListContainer.innerHTML = '';
-        admins.forEach(email => {
-            const span = document.createElement('span');
-            span.className = 'admin-tag';
-            span.innerHTML =
-                `<i class="fas fa-user-shield"></i> ${email} <i class="fas fa-times" data-email="${email}"></i>`;
-            adminListContainer.appendChild(span);
-        });
-        document.querySelectorAll('.admin-tag .fa-times').forEach(icon => {
-            icon.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const email = this.dataset.email;
-                if (!email) return;
-                if (admins.length <= 1) {
-                    showToast('⚠️ At least one admin must remain.', 'error');
-                    return;
-                }
-                admins = admins.filter(e => e !== email);
-                saveAdmins();
-                renderAdmins();
-                showToast(`🗑️ Removed ${email}`, 'info');
-            });
-        });
-    }
-
     function showError(msg) {
         authError.style.display = msg ? 'block' : 'none';
         authError.textContent = msg || '';
+    }
+
+    // ================= GET STUDENTS AND FACULTY FROM USERS =================
+    function getStudentsFromUsers() {
+        return users.filter(u => u.role === 'student' && u.rollNo);
+    }
+
+    function getFacultyFromUsers() {
+        return users.filter(u => u.role === 'faculty');
     }
 
     // ================= APPLICATION FUNCTIONS =================
@@ -387,10 +385,8 @@
         if (e.target === this) closeApply();
     });
 
-    // ================= AUTO EXCEL DOWNLOAD FUNCTION =================
     function updateMasterExcel() {
         let allApps = JSON.parse(localStorage.getItem('soet_applications')) || [];
-        
         if (allApps.length === 0) return;
 
         const excelData = allApps.map(app => ({
@@ -536,6 +532,12 @@
             saveUsers();
             showError('');
             showToast('✅ Account created successfully!', 'success');
+            
+            // Auto-login after signup
+            currentUser = newUser;
+            closeLogin();
+            enterDashboard(newUser);
+            
             isSignup = false;
             switchLink.textContent = 'Register';
             authSwitchText.textContent = "Don't have an account?";
@@ -561,6 +563,321 @@
         showToast(`👋 Welcome back, ${user.name}!`, 'success');
     });
 
+    // ================= ADMIN PANEL FUNCTIONS =================
+    function renderAdmins() {
+        if (!adminListContainer) return;
+        adminListContainer.innerHTML = '';
+        if (!admins.length) {
+            adminListContainer.innerHTML = '<p class="text-muted">No admins found. Add an admin below.</p>';
+            return;
+        }
+        admins.forEach(email => {
+            const span = document.createElement('span');
+            span.className = 'admin-tag';
+            span.innerHTML = `<i class="fas fa-user-shield"></i> ${email} <i class="fas fa-times" data-email="${email}" style="cursor:pointer;color:#dc2626;margin-left:8px;"></i>`;
+            adminListContainer.appendChild(span);
+        });
+        document.querySelectorAll('.admin-tag .fa-times').forEach(icon => {
+            icon.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const email = this.dataset.email;
+                if (!email) return;
+                if (admins.length <= 1) {
+                    showToast('⚠️ At least one admin must remain.', 'error');
+                    return;
+                }
+                admins = admins.filter(e => e !== email);
+                // Remove admin role from user but keep user
+                const user = users.find(u => u.email === email);
+                if (user) {
+                    user.role = 'student'; // Demote to student
+                    saveUsers();
+                }
+                saveAdmins();
+                renderAdmins();
+                renderUserManagement();
+                showToast(`🗑️ Removed ${email}`, 'info');
+            });
+        });
+    }
+
+    // ================= USER MANAGEMENT (Admin) =================
+    function renderUserManagement() {
+        const container = document.getElementById('userManagementContainer');
+        if (!container) return;
+        
+        const students = users.filter(u => u.role === 'student');
+        const faculty = users.filter(u => u.role === 'faculty');
+        
+        container.innerHTML = `
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+                <div class="card" style="padding:1rem;">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user-graduate" style="color:#1e3a8a;"></i> Students (${students.length})</h3>
+                        <span class="badge-soft">${students.length} registered</span>
+                    </div>
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${students.length === 0 ? '<p class="text-muted">No students registered yet.</p>' : 
+                        students.map(s => `
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f1f5f9;">
+                                <div>
+                                    <strong>${s.name}</strong>
+                                    <div style="font-size:0.75rem;color:#64748b;">${s.email} | Roll: ${s.rollNo || 'N/A'}</div>
+                                </div>
+                                <button class="btn btn-danger" onclick="removeUser('${s.email}')" style="font-size:0.65rem;padding:0.2rem 0.6rem;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="card" style="padding:1rem;">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chalkboard-teacher" style="color:#1e3a8a;"></i> Faculty (${faculty.length})</h3>
+                        <span class="badge-soft">${faculty.length} registered</span>
+                    </div>
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${faculty.length === 0 ? '<p class="text-muted">No faculty registered yet.</p>' : 
+                        faculty.map(f => `
+                            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f1f5f9;">
+                                <div>
+                                    <strong>${f.name}</strong>
+                                    <div style="font-size:0.75rem;color:#64748b;">${f.email}</div>
+                                </div>
+                                <button class="btn btn-danger" onclick="removeUser('${f.email}')" style="font-size:0.65rem;padding:0.2rem 0.6rem;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-2" style="padding:1rem;background:linear-gradient(135deg,#fef9e7,#fff8e7);border:1px solid #fde68a;">
+                <div class="card-header">
+                    <h3><i class="fas fa-info-circle" style="color:#b45309;"></i> User Management Instructions</h3>
+                </div>
+                <ul style="list-style:disc;padding-left:1.5rem;color:#475569;line-height:2;font-size:0.85rem;">
+                    <li><strong>Students</strong> registered via signup appear here and also in Faculty attendance/marks.</li>
+                    <li><strong>Faculty</strong> registered via signup appear here for admin management.</li>
+                    <li>Click the <strong>🗑️</strong> icon to remove any user (student or faculty).</li>
+                    <li>Removed users will no longer have access to the system.</li>
+                </ul>
+            </div>
+        `;
+    }
+
+    // ================= REMOVE USER =================
+    window.removeUser = function(email) {
+        if (!currentUser || currentUser.role !== 'admin') {
+            showToast('⚠️ Only admin can remove users.', 'error');
+            return;
+        }
+        if (email === 'admin@soet.edu') {
+            showToast('⚠️ Cannot remove the default admin.', 'error');
+            return;
+        }
+        if (!confirm(`Are you sure you want to remove user: ${email}? This action cannot be undone.`)) return;
+        
+        users = users.filter(u => u.email !== email);
+        admins = admins.filter(a => a !== email);
+        saveUsers();
+        saveAdmins();
+        renderAdmins();
+        renderUserManagement();
+        showToast(`🗑️ User ${email} removed successfully.`, 'success');
+    };
+
+    if (addAdminBtn) {
+        addAdminBtn.addEventListener('click', function() {
+            const email = adminEmailInput.value.trim();
+            const password = adminPasswordInput.value.trim();
+            
+            if (!email || !email.includes('@')) {
+                showToast('⚠️ Enter a valid email address.', 'error');
+                return;
+            }
+            if (!password || password.length < 6) {
+                showToast('⚠️ Password must be at least 6 characters.', 'error');
+                return;
+            }
+            if (admins.includes(email)) {
+                showToast('⚠️ Admin already exists.', 'error');
+                return;
+            }
+            
+            const existingUser = users.find(u => u.email === email);
+            if (existingUser) {
+                existingUser.role = 'admin';
+                existingUser.password = password;
+                existingUser.name = existingUser.name || email.split('@')[0];
+            } else {
+                users.push({ 
+                    name: email.split('@')[0], 
+                    email: email, 
+                    password: password, 
+                    role: 'admin', 
+                    rollNo: '' 
+                });
+            }
+            
+            admins.push(email);
+            saveUsers();
+            saveAdmins();
+            renderAdmins();
+            renderUserManagement();
+            adminEmailInput.value = '';
+            adminPasswordInput.value = '';
+            showToast(`✅ Admin ${email} added successfully!`, 'success');
+        });
+    }
+
+    if (resetAdminBtn) {
+        resetAdminBtn.addEventListener('click', function() {
+            admins = ['admin@soet.edu'];
+            if (!users.find(u => u.email === 'admin@soet.edu')) {
+                users.push({ name: 'Admin', email: 'admin@soet.edu', password: 'password123', role: 'admin', rollNo: '' });
+            }
+            saveAdmins();
+            saveUsers();
+            renderAdmins();
+            renderUserManagement();
+            showToast('🔄 Admin list reset to default.', 'info');
+        });
+    }
+
+    // ================= TIMETABLE FUNCTIONS =================
+    function renderStudentTimetable() {
+        const tbody = document.getElementById('studentTimetableBody');
+        if (!tbody) return;
+        
+        if (!timetableData.slots || timetableData.slots.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;">No timetable slots added yet.</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = timetableData.slots.map(slot => `
+            <tr>
+                <td><strong>${slot.time}</strong></td>
+                <td>${slot.mon || '-'}</td>
+                <td>${slot.tue || '-'}</td>
+                <td>${slot.wed || '-'}</td>
+                <td>${slot.thu || '-'}</td>
+                <td>${slot.fri || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderEditTimetable() {
+        timetableData.slots.forEach((slot, index) => {
+            const rowNum = index + 1;
+            const monInput = document.getElementById(`tt-mon-${rowNum}`);
+            const tueInput = document.getElementById(`tt-tue-${rowNum}`);
+            const wedInput = document.getElementById(`tt-wed-${rowNum}`);
+            const thuInput = document.getElementById(`tt-thu-${rowNum}`);
+            const friInput = document.getElementById(`tt-fri-${rowNum}`);
+            
+            if (monInput) monInput.value = slot.mon || '';
+            if (tueInput) tueInput.value = slot.tue || '';
+            if (wedInput) wedInput.value = slot.wed || '';
+            if (thuInput) thuInput.value = slot.thu || '';
+            if (friInput) friInput.value = slot.fri || '';
+        });
+    }
+
+    if (saveTimetableBtn) {
+        saveTimetableBtn.addEventListener('click', function() {
+            const statusEl = document.getElementById('timetableSaveStatus');
+            const rows = document.querySelectorAll('#timetableEditBody tr');
+            const newSlots = [];
+            
+            rows.forEach((row, index) => {
+                const inputs = row.querySelectorAll('input');
+                if (inputs.length >= 5) {
+                    const timeLabel = row.querySelector('td:first-child')?.textContent || `Slot ${index + 1}`;
+                    newSlots.push({
+                        time: timeLabel.trim(),
+                        mon: inputs[0].value.trim(),
+                        tue: inputs[1].value.trim(),
+                        wed: inputs[2].value.trim(),
+                        thu: inputs[3].value.trim(),
+                        fri: inputs[4].value.trim()
+                    });
+                }
+            });
+            
+            if (newSlots.length === 0) {
+                showToast('⚠️ No timetable slots to save.', 'error');
+                return;
+            }
+            
+            timetableData.slots = newSlots;
+            saveTimetable();
+            renderStudentTimetable();
+            
+            if (statusEl) {
+                statusEl.style.display = 'inline-block';
+                setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+            }
+            showToast('✅ Timetable saved successfully!', 'success');
+        });
+    }
+
+    if (resetTimetableBtn) {
+        resetTimetableBtn.addEventListener('click', function() {
+            timetableData.slots = [
+                { time: '09:00 - 10:30', mon: 'DS (A-102)', tue: 'NN (A-102)', wed: 'DS (A-102)', thu: 'NN (A-102)', fri: 'DS (A-102)' },
+                { time: '11:00 - 12:30', mon: 'EH (Lab 402)', tue: 'CD (LT-2)', wed: 'EH (Lab 402)', thu: 'CD (LT-2)', fri: 'EH (Lab 402)' },
+                { time: '02:00 - 03:30', mon: 'CD (LT-2)', tue: 'DS (A-102)', wed: 'NN (A-102)', thu: 'DS (A-102)', fri: 'CD (LT-2)' }
+            ];
+            saveTimetable();
+            renderStudentTimetable();
+            renderEditTimetable();
+            showToast('🔄 Timetable reset to default.', 'info');
+        });
+    }
+
+    if (addTimeSlotBtn) {
+        addTimeSlotBtn.addEventListener('click', function() {
+            const time = document.getElementById('newTimeSlot').value.trim();
+            const mon = document.getElementById('newMon').value.trim();
+            const tue = document.getElementById('newTue').value.trim();
+            const wed = document.getElementById('newWed').value.trim();
+            const thu = document.getElementById('newThu').value.trim();
+            const fri = document.getElementById('newFri').value.trim();
+            
+            if (!time) {
+                showToast('⚠️ Please enter a time slot.', 'error');
+                return;
+            }
+            
+            timetableData.slots.push({ time, mon, tue, wed, thu, fri });
+            saveTimetable();
+            renderStudentTimetable();
+            
+            const tbody = document.getElementById('timetableEditBody');
+            const rowNum = timetableData.slots.length;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${time}</strong></td>
+                <td><input type="text" id="tt-mon-${rowNum}" class="input-slim" style="width:100%;" value="${mon}"></td>
+                <td><input type="text" id="tt-tue-${rowNum}" class="input-slim" style="width:100%;" value="${tue}"></td>
+                <td><input type="text" id="tt-wed-${rowNum}" class="input-slim" style="width:100%;" value="${wed}"></td>
+                <td><input type="text" id="tt-thu-${rowNum}" class="input-slim" style="width:100%;" value="${thu}"></td>
+                <td><input type="text" id="tt-fri-${rowNum}" class="input-slim" style="width:100%;" value="${fri}"></td>
+            `;
+            tbody.appendChild(tr);
+            
+            document.getElementById('newTimeSlot').value = '';
+            document.getElementById('newMon').value = '';
+            document.getElementById('newTue').value = '';
+            document.getElementById('newWed').value = '';
+            document.getElementById('newThu').value = '';
+            document.getElementById('newFri').value = '';
+            
+            showToast('✅ New time slot added!', 'success');
+        });
+    }
+
     // ================= DASHBOARD =================
     function enterDashboard(user) {
         publicWebsite.style.display = 'none';
@@ -573,7 +890,6 @@
         const isFaculty = user.role === 'faculty';
         const isAdmin = user.role === 'admin';
 
-        // Show/hide student-only elements - FIXED: Use proper display values
         document.querySelectorAll('.student-only').forEach(el => {
             if (el.classList.contains('taskbar-btn')) {
                 el.style.display = isStudent ? 'inline-flex' : 'none';
@@ -582,7 +898,6 @@
             }
         });
 
-        // Show/hide faculty-only elements (Faculty AND Admin)
         document.querySelectorAll('.faculty-only').forEach(el => {
             if (el.classList.contains('taskbar-btn')) {
                 el.style.display = (isFaculty || isAdmin) ? 'inline-flex' : 'none';
@@ -591,7 +906,6 @@
             }
         });
 
-        // Show/hide admin-only elements (Admin only)
         document.querySelectorAll('.admin-only').forEach(el => {
             if (el.classList.contains('taskbar-btn')) {
                 el.style.display = isAdmin ? 'inline-flex' : 'none';
@@ -600,33 +914,34 @@
             }
         });
 
-        // QR Card - visible to Faculty and Admin
         const qrCard = document.getElementById('qrCard');
         if (qrCard) qrCard.style.display = (isFaculty || isAdmin) ? 'block' : 'none';
         
-        // Critical Alerts - visible to Faculty and Admin
         const alertsCard = document.getElementById('criticalAlertsCard');
         if (alertsCard) alertsCard.style.display = (isFaculty || isAdmin) ? 'block' : 'none';
 
-        // Student dashboard
         if (isStudent) {
             greeting.innerHTML = '👋 Welcome back, ' + (user.name || 'Student');
-            subGreeting.innerHTML = 'You\'ve completed 72% of your weekly targets. Mid-sems in 14 days.';
+            subGreeting.innerHTML = 'Your personalized dashboard will populate as faculty and admin add data.';
             renderStudentAssignments();
             renderFeeOverview();
             updateDashboardAttendanceWidget();
             updateDashboardTodayAttendance();
+            renderStudentTimetable();
         } 
-        // Faculty dashboard
         else if (isFaculty) {
             greeting.innerHTML = '👋 Welcome back, Professor ' + (user.name || 'Faculty');
             subGreeting.innerHTML = 'You have 3 classes scheduled for today. QR Generation available for attendance.';
+            // Load students from registered users for attendance
+            loadStudentsFromUsers();
         } 
-        // Admin dashboard
         else if (isAdmin) {
             greeting.innerHTML = '👋 Admin Dashboard';
-            subGreeting.innerHTML = 'Full control over the system. QR Generation, Events, and Timetable management available.';
+            subGreeting.innerHTML = 'Full control over the system. Create faculty accounts, manage students, and more.';
             renderAdmins();
+            renderStudentTimetable();
+            renderEditTimetable();
+            renderUserManagement();
         }
 
         localStorage.setItem('soet_current_user', JSON.stringify({ email: user.email, password: user.password }));
@@ -643,17 +958,40 @@
 
     logoutBtn.addEventListener('click', logout);
 
-    // ================= PAGE NAVIGATION - FIXED =================
-    window.navigateTo = function(page) {
-        console.log('🔄 Navigating to:', page);
+    // ================= LOAD STUDENTS FROM USERS INTO FACULTY ATTENDANCE =================
+    function loadStudentsFromUsers() {
+        const students = getStudentsFromUsers();
+        if (students.length === 0) return;
         
-        // Check if user is logged in
+        // Add any new students to facStudents if not already present
+        students.forEach(s => {
+            if (!facStudents.find(f => f.rollNo === s.rollNo)) {
+                facStudents.push({ name: s.name, rollNo: s.rollNo });
+            }
+        });
+        saveFacStudents();
+        renderFacStudentChips();
+        renderFacAttendanceStats();
+    }
+
+    // ================= SVG RING FUNCTION =================
+    window.ringSvg = function(size, stroke, pct, color, trackColor) {
+        const r = (size - stroke) / 2;
+        const c = 2 * Math.PI * r;
+        const offset = c - (pct / 100) * c;
+        return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+            <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${trackColor || '#eef2f7'}" stroke-width="${stroke}"></circle>
+            <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${offset}"></circle>
+        </svg>`;
+    };
+
+    // ================= PAGE NAVIGATION =================
+    window.navigateTo = function(page) {
         if (!currentUser) {
             showToast('⚠️ Please login first.', 'error');
             return;
         }
 
-        // Map display names to actual page IDs
         const pageMap = {
             'dashboard': 'dashboard',
             'placements': 'placements',
@@ -676,15 +1014,14 @@
             'syllabus': 'syllabus',
             'qr': 'qr',
             'events-manage': 'events',
-            'timetable-manage': 'timetable',
+            'timetable-manage': 'timetable-manage',
+            'admin-panel': 'admin-panel',
             'profile': 'profile'
         };
 
-        // Get the actual page ID
         const actualPage = pageMap[page] || page;
 
-        // Check permissions for admin-only pages
-        const adminOnlyPages = ['events-manage', 'timetable-manage'];
+        const adminOnlyPages = ['events-manage', 'timetable-manage', 'admin-panel'];
         if (adminOnlyPages.includes(page)) {
             if (!currentUser || currentUser.role !== 'admin') {
                 showToast('⛔ Access denied. Admin only.', 'error');
@@ -692,7 +1029,6 @@
             }
         }
 
-        // Check permissions for faculty-only pages
         const facultyOnlyPages = ['marks-entry', 'attendance', 'assignment-upload', 'syllabus', 'qr'];
         if (facultyOnlyPages.includes(page)) {
             if (!currentUser || (currentUser.role !== 'faculty' && currentUser.role !== 'admin')) {
@@ -701,7 +1037,6 @@
             }
         }
 
-        // Check permissions for student-only pages
         const studentOnlyPages = ['placements', 'assignments', 'materials', 'fees', 'results', 
                                   'certificates', 'helpdesk', 'hostel', 'transport', 'calendar', 
                                   'performance', 'my-attendance', 'timetable', 'events'];
@@ -712,35 +1047,25 @@
             }
         }
 
-        // Hide all page content
         document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
         
-        // Show the target page
         const target = document.getElementById('page-' + actualPage);
         if (target) {
             target.classList.add('active');
-            console.log('✅ Page activated:', 'page-' + actualPage);
         } else {
-            console.warn('⚠️ Page not found:', 'page-' + actualPage);
             showToast('⚠️ Page not found: ' + page, 'error');
             return;
         }
 
-        // Update taskbar button states
         document.querySelectorAll('.taskbar-btn').forEach(b => b.classList.remove('active'));
         const btn = document.querySelector(`.taskbar-btn[data-page="${page}"]`);
         if (btn) {
             btn.classList.add('active');
-            console.log('✅ Button activated:', page);
-        } else {
-            console.warn('⚠️ Button not found for page:', page);
         }
 
-        // Show/hide welcome block
         const welcome = document.querySelector('.welcome-block');
         if (welcome) welcome.style.display = (page === 'dashboard') ? 'block' : 'none';
         
-        // Render specific page content
         if (page === 'profile') renderProfilePage();
         if (page === 'my-attendance') renderMyAttendance(currentAttSem || 6);
         if (page === 'attendance') { 
@@ -753,61 +1078,29 @@
         if (page === 'assignment-upload') renderFacultyAssignments();
         if (page === 'assignments') renderStudentAssignments();
         if (page === 'events' || page === 'events-manage') renderEventsPage();
+        if (page === 'admin-panel') { 
+            renderAdmins(); 
+            renderUserManagement(); 
+        }
+        if (page === 'timetable') renderStudentTimetable();
+        if (page === 'timetable-manage') { renderEditTimetable(); }
         if (page === 'dashboard') { 
             updateDashboardAttendanceWidget(); 
             updateDashboardTodayAttendance(); 
-        }
-        
-        // Show page-specific toast messages
-        const pageMessages = {
-            'placements': '🏢 Placements - Explore recruitment opportunities',
-            'assignments': '📝 Assignments - Submit and track your work',
-            'materials': '📚 Study Materials - Access your course materials',
-            'fees': '💰 Fee Management - View and pay your fees',
-            'results': '📊 Results - View your academic performance',
-            'certificates': '📜 Certificates - Download your academic certificates',
-            'helpdesk': '🆘 Help Desk - Support team is available 24/7',
-            'hostel': '🏠 Hostel Management - View your accommodation details',
-            'transport': '🚌 Transport - Bus routes and schedules',
-            'calendar': '📅 Academic Calendar - Important dates and events',
-            'performance': '📈 Performance - Track your academic progress',
-            'my-attendance': '📋 Attendance - Track your semester attendance',
-            'timetable': '📅 Timetable - View your weekly schedule',
-            'qr': '📱 QR Generation - Available for Faculty & Admin',
-            'marks-entry': '✏️ Marks Entry - Add or update student marks',
-            'attendance': '📋 Attendance Marking - Mark attendance for classes',
-            'assignment-upload': '📤 Assignment Upload - Upload assignments for students',
-            'syllabus': '📚 Syllabus - Track your course progress',
-            'profile': '👤 Profile - Manage your account settings'
-        };
-        
-        if (pageMessages[page]) {
-            showToast(pageMessages[page], 'info');
+            renderStudentTimetable();
+            if (currentUser.role === 'admin') renderUserManagement();
         }
     };
-    // ================= TASKBAR CLICK BINDING =================
-document.querySelectorAll('.taskbar-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const page = this.dataset.page;
-        if (page) navigateTo(page);
+
+    document.querySelectorAll('.taskbar-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const page = this.dataset.page;
+            if (page) navigateTo(page);
+        });
     });
-});
 
     // ================= ATTENDANCE FUNCTIONS =================
-    let facStudents = JSON.parse(localStorage.getItem('soet_fac_students')) || [
-        { name: 'Ishani', rollNo: '2024CSE001' },
-        { name: 'Vihaan', rollNo: '2024CSE002' },
-        { name: 'Ananya', rollNo: '2024CSE003' },
-        { name: 'Rohan', rollNo: '2024CSE004' },
-        { name: 'Meera', rollNo: '2024CSE005' },
-        { name: 'Aditya', rollNo: '2024CSE006' },
-        { name: 'Sia', rollNo: '2024CSE007' },
-        { name: 'Aarav', rollNo: '2024CSE008' },
-        { name: 'Kavya', rollNo: '2024CSE009' },
-        { name: 'Arjun', rollNo: '2024CSE010' },
-        { name: 'Priya', rollNo: '2024CSE011' },
-        { name: 'Rahul', rollNo: '2024CSE012' }
-    ];
+    let facStudents = JSON.parse(localStorage.getItem('soet_fac_students')) || [];
     function saveFacStudents() { localStorage.setItem('soet_fac_students', JSON.stringify(facStudents)); }
     function todayKey() { return new Date().toISOString().slice(0, 10); }
     function getTodayAttendanceMap() {
@@ -815,11 +1108,32 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         try { all = JSON.parse(localStorage.getItem('soet_today_attendance')) || {}; } catch (e) { all = {}; }
         return all;
     }
+    
     window.renderFacStudentChips = function() {
         const wrap = document.getElementById('facStudentChips');
         if (!wrap) return;
         const allAtt = getTodayAttendanceMap();
         const todayMap = allAtt[todayKey()] || {};
+        
+        // Load students from registered users if facStudents is empty
+        if (facStudents.length === 0) {
+            const students = getStudentsFromUsers();
+            if (students.length > 0) {
+                students.forEach(s => {
+                    if (!facStudents.find(f => f.rollNo === s.rollNo)) {
+                        facStudents.push({ name: s.name, rollNo: s.rollNo });
+                    }
+                });
+                saveFacStudents();
+            }
+        }
+        
+        if (facStudents.length === 0) {
+            wrap.innerHTML = '<div class="text-muted" style="grid-column:1/-1;text-align:center;padding:1rem;">No students registered yet. Students will appear here after they sign up.</div>';
+            updatePresentCount();
+            return;
+        }
+        
         wrap.innerHTML = facStudents.map(s => {
             const present = todayMap[s.rollNo] !== false;
             const iconClass = present ? 'fa-check-circle' : 'fa-times-circle';
@@ -884,19 +1198,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         const allAtt = getTodayAttendanceMap();
         allAtt[todayKey()] = todayMap;
         localStorage.setItem('soet_today_attendance', JSON.stringify(allAtt));
-
-        const total = chips.length;
-        if (typeof attSemData !== 'undefined' && attSemData[6]) {
-            const subj = attSemData[6].subjects.find(s => s.subject === 'Distributed Systems');
-            if (subj && total > 0) {
-                const dayPresent = (present / total) >= 0.5 ? 1 : 0;
-                subj.total += 1;
-                subj.present += dayPresent;
-                subj.pct = Math.round((subj.present / subj.total) * 100);
-                if (typeof persistAttSemData === 'function') persistAttSemData();
-            }
-        }
-        showToast('💾 Attendance saved! Student attendance records updated.', 'success');
+        showToast('💾 Attendance saved!', 'success');
     };
 
     function updatePresentCount() {
@@ -913,12 +1215,45 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         if (typeof renderFacAttendanceStats === 'function') renderFacAttendanceStats();
     }
 
+    function renderFacAttendanceStats() {
+        const statGrid = document.getElementById('facAttStatGrid');
+        if (!statGrid) return;
+        const chips = document.querySelectorAll('#page-attendance .student-chip');
+        const total = chips.length;
+        let present = 0;
+        chips.forEach(chip => {
+            const icon = chip.querySelector('i');
+            if (icon.classList.contains('fa-check-circle')) present++;
+        });
+        const absent = total - present;
+        const pct = total ? Math.round((present / total) * 100) : 0;
+        statGrid.innerHTML = `
+            <div class="att-stat-card">
+                <div class="att-icn" style="background:#eaf0fa;color:#1e3a8a;"><i class="fas fa-users"></i></div>
+                <div class="att-val">${total}</div>
+                <div class="att-lbl">Total Students</div>
+            </div>
+            <div class="att-stat-card">
+                <div class="att-icn" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-circle-check"></i></div>
+                <div class="att-val">${present}</div>
+                <div class="att-lbl">Present Today</div>
+            </div>
+            <div class="att-stat-card">
+                <div class="att-icn" style="background:#fee2e2;color:#dc2626;"><i class="fas fa-circle-xmark"></i></div>
+                <div class="att-val">${absent}</div>
+                <div class="att-lbl">Absent Today</div>
+            </div>
+            <div class="att-stat-card">
+                <div class="att-icn" style="background:#fef3c7;color:#d97706;"><i class="fas fa-chart-pie"></i></div>
+                <div class="att-val">${pct}%</div>
+                <div class="att-lbl">Class Attendance</div>
+            </div>`;
+    }
+
     // ================= NOTIFICATIONS =================
     let notifications = JSON.parse(localStorage.getItem('soet_notifications')) || [
-        { id: 1, icon: 'fa-bullhorn', title: 'Mid Semester Exams start from 10 September', time: '2 hours ago', read: false },
-        { id: 2, icon: 'fa-code', title: 'Hackathon 2026 registrations are open', time: '5 hours ago', read: false },
-        { id: 3, icon: 'fa-credit-card', title: 'Fee payment reminder: ₹1,45,000 due Nov 15', time: '1 day ago', read: false },
-        { id: 4, icon: 'fa-graduation-cap', title: 'Semester VI results have been published', time: '2 days ago', read: true }
+        { id: 1, icon: 'fa-bullhorn', title: 'Welcome to SOET Portal! Explore the features.', time: 'Just now', read: false },
+        { id: 2, icon: 'fa-code', title: 'Hackathon 2026 registrations are open', time: '1 day ago', read: false }
     ];
     const notifBellBtn = document.getElementById('notifBellBtn');
     const notifDropdown = document.getElementById('notifDropdown');
@@ -1038,48 +1373,12 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
 
     // ================= MY ATTENDANCE (STUDENT) =================
     const attSemData = {
-        1: { weeks: [{m:'W1',pct:92},{m:'W2',pct:88},{m:'W3',pct:90},{m:'W4',pct:85},{m:'W5',pct:91},{m:'W6',pct:89}], subjects: [
-            { subject: 'Engineering Mathematics I', pct: 90, present: 45, total: 50, color: '#2563eb' },
-            { subject: 'Programming in C', pct: 94, present: 47, total: 50, color: '#16a34a' },
-            { subject: 'Engineering Physics', pct: 86, present: 43, total: 50, color: '#ea580c' },
-            { subject: 'Basic Electrical Engg.', pct: 80, present: 40, total: 50, color: '#7c3aed' },
-            { subject: 'Communication Skills', pct: 88, present: 44, total: 50, color: '#0891b2' }
-        ]},
-        2: { weeks: [{m:'W1',pct:89},{m:'W2',pct:91},{m:'W3',pct:85},{m:'W4',pct:88},{m:'W5',pct:90},{m:'W6',pct:86}], subjects: [
-            { subject: 'Engineering Mathematics II', pct: 87, present: 42, total: 48, color: '#2563eb' },
-            { subject: 'Data Structures', pct: 92, present: 46, total: 50, color: '#16a34a' },
-            { subject: 'Digital Logic Design', pct: 89, present: 43, total: 48, color: '#ea580c' },
-            { subject: 'OOP with Java', pct: 91, present: 44, total: 48, color: '#7c3aed' },
-            { subject: 'Environmental Science', pct: 93, present: 42, total: 45, color: '#0891b2' }
-        ]},
-        3: { weeks: [{m:'W1',pct:84},{m:'W2',pct:80},{m:'W3',pct:86},{m:'W4',pct:78},{m:'W5',pct:82},{m:'W6',pct:85}], subjects: [
-            { subject: 'Discrete Mathematics', pct: 83, present: 40, total: 48, color: '#2563eb' },
-            { subject: 'Database Management', pct: 90, present: 45, total: 50, color: '#16a34a' },
-            { subject: 'Theory of Computation', pct: 76, present: 35, total: 46, color: '#ea580c' },
-            { subject: 'Operating Systems', pct: 81, present: 39, total: 48, color: '#7c3aed' },
-            { subject: 'Probability & Statistics', pct: 79, present: 38, total: 48, color: '#0891b2' }
-        ]},
-        4: { weeks: [{m:'W1',pct:88},{m:'W2',pct:85},{m:'W3',pct:90},{m:'W4',pct:87},{m:'W5',pct:84},{m:'W6',pct:89}], subjects: [
-            { subject: 'Introduction to ML', pct: 91, present: 46, total: 50, color: '#2563eb' },
-            { subject: 'Computer Networks', pct: 85, present: 41, total: 48, color: '#16a34a' },
-            { subject: 'Design & Analysis of Algo', pct: 88, present: 42, total: 48, color: '#ea580c' },
-            { subject: 'Python for Data Science', pct: 93, present: 47, total: 50, color: '#7c3aed' },
-            { subject: 'Software Engineering', pct: 82, present: 39, total: 48, color: '#0891b2' }
-        ]},
-        5: { weeks: [{m:'W1',pct:95},{m:'W2',pct:92},{m:'W3',pct:90},{m:'W4',pct:93},{m:'W5',pct:91},{m:'W6',pct:94}], subjects: [
-            { subject: 'Deep Learning', pct: 95, present: 48, total: 50, color: '#2563eb' },
-            { subject: 'Natural Language Processing', pct: 91, present: 46, total: 50, color: '#16a34a' },
-            { subject: 'Computer Vision', pct: 93, present: 47, total: 50, color: '#ea580c' },
-            { subject: 'Big Data Analytics', pct: 89, present: 43, total: 48, color: '#7c3aed' },
-            { subject: 'AI Ethics & Governance', pct: 92, present: 44, total: 48, color: '#0891b2' }
-        ]},
-        6: { weeks: [{m:'Jul',pct:90},{m:'Aug',pct:85},{m:'Sep',pct:78},{m:'Oct',pct:82},{m:'Nov',pct:74},{m:'Dec',pct:80}], subjects: [
-            { subject: 'Distributed Systems', pct: 88, present: 44, total: 50, color: '#2563eb' },
-            { subject: 'Data Structures', pct: 79, present: 38, total: 48, color: '#7c3aed' },
-            { subject: 'Neural Networks', pct: 91, present: 41, total: 45, color: '#16a34a' },
-            { subject: 'Ethical Hacking', pct: 68, present: 30, total: 44, color: '#ea580c' },
-            { subject: 'Compiler Design', pct: 76, present: 34, total: 45, color: '#0891b2' }
-        ]}
+        1: { weeks: [], subjects: [] },
+        2: { weeks: [], subjects: [] },
+        3: { weeks: [], subjects: [] },
+        4: { weeks: [], subjects: [] },
+        5: { weeks: [], subjects: [] },
+        6: { weeks: [], subjects: [] }
     };
     let currentAttSem = 6;
     const semRoman = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI'};
@@ -1091,14 +1390,8 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
             if (saved) {
                 Object.keys(saved).forEach(sem => {
                     if (attSemData[sem] && saved[sem] && saved[sem].subjects) {
-                        saved[sem].subjects.forEach(savedSubj => {
-                            const target = attSemData[sem].subjects.find(s => s.subject === savedSubj.subject);
-                            if (target) {
-                                target.present = savedSubj.present;
-                                target.total = savedSubj.total;
-                                target.pct = savedSubj.pct;
-                            }
-                        });
+                        attSemData[sem].subjects = saved[sem].subjects || [];
+                        attSemData[sem].weeks = saved[sem].weeks || [];
                     }
                 });
             }
@@ -1108,27 +1401,6 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         try { localStorage.setItem(ATT_STORAGE_KEY, JSON.stringify(attSemData)); } catch (e) { /* storage unavailable */ }
     }
     loadPersistedAttendance();
-    window.addEventListener('storage', function(e) {
-        if (e.key === ATT_STORAGE_KEY) {
-            loadPersistedAttendance();
-            const myAttPage = document.getElementById('page-my-attendance');
-            if (myAttPage && myAttPage.classList.contains('active')) renderMyAttendance(currentAttSem);
-        }
-        if (e.key === 'soet_marks_entries') {
-            const perfPage = document.getElementById('page-performance');
-            if (perfPage && perfPage.classList.contains('active') && typeof renderStudentMarksUpdates === 'function') renderStudentMarksUpdates();
-        }
-    });
-
-    function ringSvg(size, stroke, pct, color, trackColor) {
-        const r = (size - stroke) / 2;
-        const c = 2 * Math.PI * r;
-        const offset = c - (pct / 100) * c;
-        return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-            <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${trackColor || '#eef2f7'}" stroke-width="${stroke}"></circle>
-            <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${offset}"></circle>
-        </svg>`;
-    }
 
     window.switchAttSem = function(sem) {
         currentAttSem = sem;
@@ -1140,7 +1412,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         renderMyAttendance(sem);
     };
 
-    function renderMyAttendance(sem) {
+    window.renderMyAttendance = function(sem) {
         sem = sem || currentAttSem;
         currentAttSem = sem;
         const data = attSemData[sem];
@@ -1163,7 +1435,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
                     <div style="background:${present ? 'linear-gradient(135deg,#f0fdf4,#dcfce7)' : 'linear-gradient(135deg,#fef2f2,#fee2e2)'};border:1px solid ${present ? '#bbf7d0' : '#fecaca'};border-radius:18px;padding:1rem 1.4rem;margin-bottom:1.3rem;display:flex;align-items:center;gap:1rem;">
                         <div style="width:38px;height:38px;background:${present ? '#16a34a' : '#dc2626'};border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas ${present ? 'fa-circle-check' : 'fa-circle-xmark'}" style="color:white;"></i></div>
                         <div>
-                            <div style="font-weight:700;font-size:0.9rem;color:${present ? '#166534' : '#991b1b'};">Today's Attendance (CS402 - Distributed Systems): ${present ? 'Marked Present ✅' : 'Marked Absent ❌'}</div>
+                            <div style="font-weight:700;font-size:0.9rem;color:${present ? '#166534' : '#991b1b'};">Today's Attendance: ${present ? 'Marked Present ✅' : 'Marked Absent ❌'}</div>
                             <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">Live update from Faculty · Roll No: ${myRoll}</div>
                         </div>
                     </div>`;
@@ -1176,79 +1448,103 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         const activeBtn = document.getElementById('att-sem-tab-' + sem);
         if (activeBtn) activeBtn.classList.add('active');
 
-        const subjects = data.subjects;
-        const totalClasses = subjects.reduce((s, a) => s + a.total, 0);
-        const totalPresent = subjects.reduce((s, a) => s + a.present, 0);
+        const subjects = data.subjects || [];
+        const totalClasses = subjects.reduce((s, a) => s + (a.total || 0), 0);
+        const totalPresent = subjects.reduce((s, a) => s + (a.present || 0), 0);
         const totalAbsent = totalClasses - totalPresent;
-        const lowSubjects = subjects.filter(a => a.pct < 75).length;
-        const avg = Math.round((totalPresent / totalClasses) * 100);
+        const avg = totalClasses ? Math.round((totalPresent / totalClasses) * 100) : 0;
         const avgColor = avg >= 85 ? '#16a34a' : (avg >= 75 ? '#2563eb' : '#dc2626');
 
         if (statGrid) {
             statGrid.innerHTML = `
                 <div class="att-stat-card">
                     <div class="att-icn" style="background:#eaf0fa;color:#1e3a8a;"><i class="fas fa-calendar-check"></i></div>
-                    <div class="att-val">${totalClasses}</div>
+                    <div class="att-val">${totalClasses || 'N/A'}</div>
                     <div class="att-lbl">Total Classes — Sem ${semRoman[sem]}</div>
                 </div>
                 <div class="att-stat-card">
                     <div class="att-icn" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-circle-check"></i></div>
-                    <div class="att-val">${totalPresent}</div>
+                    <div class="att-val">${totalPresent || 'N/A'}</div>
                     <div class="att-lbl">Classes Attended</div>
                 </div>
                 <div class="att-stat-card">
                     <div class="att-icn" style="background:#fee2e2;color:#dc2626;"><i class="fas fa-circle-xmark"></i></div>
-                    <div class="att-val">${totalAbsent}</div>
+                    <div class="att-val">${totalAbsent || 'N/A'}</div>
                     <div class="att-lbl">Classes Missed</div>
                 </div>
                 <div class="att-stat-card">
                     <div class="att-icn" style="background:#fef3c7;color:#d97706;"><i class="fas fa-triangle-exclamation"></i></div>
-                    <div class="att-val">${lowSubjects}</div>
+                    <div class="att-val">${subjects.filter(a => (a.pct || 0) < 75).length}</div>
                     <div class="att-lbl">Debarred Subjects</div>
                 </div>`;
         }
 
         if (donutWrap) {
-            donutWrap.innerHTML = `
-                ${ringSvg(150, 14, avg, avgColor)}
-                <div class="att-donut-label">
-                    <span class="pct" style="color:${avgColor};">${avg}%</span>
-                    <span class="sub">Sem ${semRoman[sem]}</span>
-                </div>`;
+            if (totalClasses === 0) {
+                donutWrap.innerHTML = `
+                    <div style="text-align:center;padding:1rem;color:#94a3b8;">
+                        <i class="fas fa-info-circle" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                        <span>No attendance data available yet.</span>
+                        <span style="display:block;font-size:0.7rem;">Faculty will mark attendance for your classes.</span>
+                    </div>`;
+            } else {
+                donutWrap.innerHTML = `
+                    ${window.ringSvg(150, 14, avg, avgColor)}
+                    <div class="att-donut-label">
+                        <span class="pct" style="color:${avgColor};">${avg}%</span>
+                        <span class="sub">Sem ${semRoman[sem]}</span>
+                    </div>`;
+            }
         }
 
-        if (trendTitle) trendTitle.innerHTML = `<i class="fas fa-chart-line" style="color:#1e3a8a;"></i> Weekly Attendance Trend — Sem ${semRoman[sem]}`;
+        if (trendTitle) trendTitle.innerHTML = `<i class="fas fa-chart-line" style="color:#1e3a8a;"></i> Attendance Trend — Sem ${semRoman[sem]}`;
 
         if (trendWrap) {
-            const maxPct = 100;
-            trendWrap.innerHTML = data.weeks.map(t => {
-                const h = Math.round((t.pct / maxPct) * 90);
-                const c = t.pct >= 75 ? '#1e3a8a' : '#dc2626';
-                return `<div class="att-trend-bar-col">
-                    <span class="bar-val">${t.pct}%</span>
-                    <div class="bar" style="height:${h}px;background:linear-gradient(180deg, ${c}, ${c}cc);"></div>
-                    <span class="bar-lbl">${t.m}</span>
+            const weeks = data.weeks || [];
+            if (weeks.length === 0) {
+                trendWrap.innerHTML = `<div style="text-align:center;color:#94a3b8;width:100%;padding:0.5rem;">No data available yet.</div>`;
+            } else {
+                const maxPct = 100;
+                trendWrap.innerHTML = weeks.map(t => {
+                    const h = Math.round((t.pct / maxPct) * 90);
+                    const c = t.pct >= 75 ? '#1e3a8a' : '#dc2626';
+                    return `<div class="att-trend-bar-col">
+                        <span class="bar-val">${t.pct}%</span>
+                        <div class="bar" style="height:${h}px;background:linear-gradient(180deg, ${c}, ${c}cc);"></div>
+                        <span class="bar-lbl">${t.m}</span>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        if (subjects.length === 0) {
+            list.innerHTML = `
+                <div style="text-align:center;padding:2rem;color:#94a3b8;">
+                    <i class="fas fa-clipboard-list" style="font-size:2.5rem;display:block;margin-bottom:1rem;opacity:0.5;"></i>
+                    <p style="font-weight:500;">No attendance records for Semester ${semRoman[sem]}</p>
+                    <p style="font-size:0.85rem;">Faculty will mark attendance as classes progress.</p>
+                </div>`;
+        } else {
+            list.innerHTML = subjects.map(a => {
+                const pct = a.pct || 0;
+                const low = pct < 75;
+                return `<div class="subj-att-card" style="${low ? 'background:#fef2f2;border-color:#fecaca;' : ''}">
+                    <div class="subj-ring">
+                        ${window.ringSvg(52, 6, pct, a.color || '#2563eb')}
+                        <span style="color:${a.color || '#2563eb'};">${pct}%</span>
+                    </div>
+                    <div class="subj-info">
+                        <div class="subj-name">${a.subject} ${low ? '<span class="badge-danger" style="margin-left:6px;"><i class="fas fa-user-slash"></i> Debarred</span>' : ''}</div>
+                        <div class="subj-meta">${a.present || 0} / ${a.total || 0} classes attended</div>
+                    </div>
                 </div>`;
             }).join('');
         }
 
-        list.innerHTML = subjects.map(a => {
-            const low = a.pct < 75;
-            return `<div class="subj-att-card" style="${low ? 'background:#fef2f2;border-color:#fecaca;' : ''}">
-                <div class="subj-ring">
-                    ${ringSvg(52, 6, a.pct, a.color)}
-                    <span style="color:${a.color};">${a.pct}%</span>
-                </div>
-                <div class="subj-info">
-                    <div class="subj-name">${a.subject} ${low ? '<span class="badge-danger" style="margin-left:6px;"><i class="fas fa-user-slash"></i> Debarred</span>' : ''}</div>
-                    <div class="subj-meta">${a.present} / ${a.total} classes attended</div>
-                </div>
-            </div>`;
-        }).join('');
-
         renderAttCalendar(sem, avg);
-    }
+    };
 
+    // ================= ATTENDANCE CALENDAR =================
     const attMonthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const attSemBase = { 
         1: { m: 7, y: 2025, w: 5 }, 
@@ -1263,6 +1559,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
     let attMonthIndex = 0;   
     let attWeekIndex = 0;    
     let attCalView = 'month';
+    let lastAttAvgPct = 80;
 
     function getMonthInfo(sem, idx) {
         const base = attSemBase[sem] || { m: 0, y: 2026, w: 0 };
@@ -1304,8 +1601,6 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         }
         renderAttCalendar(currentAttSem, lastAttAvgPct);
     };
-
-    let lastAttAvgPct = 80;
 
     function renderAttCalendar(sem, avgPct) {
         const grid = document.getElementById('attCalendarGrid');
@@ -1357,67 +1652,111 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         grid.innerHTML = html;
     }
 
-    function renderFacAttendanceStats() {
-        const statGrid = document.getElementById('facAttStatGrid');
-        if (!statGrid) return;
-        const chips = document.querySelectorAll('#page-attendance .student-chip');
-        const total = chips.length;
-        let present = 0;
-        chips.forEach(chip => {
-            const icon = chip.querySelector('i');
-            if (icon.classList.contains('fa-check-circle')) present++;
-        });
-        const absent = total - present;
-        const pct = total ? Math.round((present / total) * 100) : 0;
-        statGrid.innerHTML = `
-            <div class="att-stat-card">
-                <div class="att-icn" style="background:#eaf0fa;color:#1e3a8a;"><i class="fas fa-users"></i></div>
-                <div class="att-val">${total}</div>
-                <div class="att-lbl">Total Students</div>
-            </div>
-            <div class="att-stat-card">
-                <div class="att-icn" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-circle-check"></i></div>
-                <div class="att-val">${present}</div>
-                <div class="att-lbl">Present Today</div>
-            </div>
-            <div class="att-stat-card">
-                <div class="att-icn" style="background:#fee2e2;color:#dc2626;"><i class="fas fa-circle-xmark"></i></div>
-                <div class="att-val">${absent}</div>
-                <div class="att-lbl">Absent Today</div>
-            </div>
-            <div class="att-stat-card">
-                <div class="att-icn" style="background:#fef3c7;color:#d97706;"><i class="fas fa-chart-pie"></i></div>
-                <div class="att-val">${pct}%</div>
-                <div class="att-lbl">Class Attendance</div>
+    // ================= REE FEE SECTION =================
+    let reePaid = false;
+    const reeExamDate = { day: 22, label: '22 Aug \'26', month: 'August 2026' };
+
+    function renderReeFeeSection() {
+        const el = document.getElementById('ree-fee-section');
+        if (!el) return;
+
+        const failedSubjects = (attSemData[6] && attSemData[6].subjects.filter(s => (s.pct || 0) < 40)) || [];
+        if (!failedSubjects.length) { el.innerHTML = ''; return; }
+
+        if (!reePaid) {
+            el.innerHTML = `
+                <div class="card" style="border:1px solid #fecaca;background:linear-gradient(135deg,#fef2f2,#fff5f5);">
+                    <h3 style="color:#991b1b;display:flex;align-items:center;gap:8px;"><i class="fas fa-triangle-exclamation"></i> Re-Examination (REE) Fee Due</h3>
+                    <p class="text-muted" style="margin-top:4px;">For: ${failedSubjects.map(s=>s.subject).join(', ')} (Semester VI)</p>
+                    <h2 style="color:#dc2626;font-size:1.8rem;margin-top:0.6rem;">₹3,500</h2>
+                    <p class="text-muted">Pay this fee to get your Re-Examination exam date scheduled.</p>
+                    <button class="btn btn-primary mt-2" style="background:#dc2626;border:none;" onclick="openReeFeeGateway()"><i class="fas fa-credit-card"></i> Pay REE Fee</button>
+                </div>`;
+        } else {
+            el.innerHTML = `
+                <div class="card" style="border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#f7fefb);">
+                    <h3 style="color:#15803d;display:flex;align-items:center;gap:8px;"><i class="fas fa-circle-check"></i> REE Fee Paid</h3>
+                    <p class="text-muted" style="margin-top:4px;">For: ${failedSubjects.map(s=>s.subject).join(', ')} (Semester VI)</p>
+                    <span class="badge-success" style="margin-top:0.6rem;display:inline-block;">✅ ₹3,500 Paid</span>
+                    <p style="margin-top:0.8rem;font-size:0.9rem;color:#166534;"><i class="fas fa-calendar-check"></i> Your REE exam is scheduled for <strong>${reeExamDate.label}</strong>. Check the Calendar for details.</p>
+                    <button class="btn btn-outline mt-2" onclick="navigateTo('calendar')"><i class="fas fa-calendar-alt"></i> View on Calendar</button>
+                </div>`;
+        }
+    }
+
+    window.openReeFeeGateway = function() {
+        if (reePaid) {
+            showToast('✅ REE fee is already paid.', 'info');
+            return;
+        }
+        const failedSubjects = (attSemData[6] && attSemData[6].subjects.filter(s => (s.pct || 0) < 40)) || [];
+        showToast('💳 REE Fee payment initiated!', 'info');
+        reePaid = true;
+        renderReeFeeSection();
+        renderReeCalendarNotice();
+        showToast('✅ REE Fee Paid!', 'success');
+    };
+
+    function renderReeCalendarNotice() {
+        const el = document.getElementById('ree-calendar-notice');
+        if (!el) return;
+        if (!reePaid) { el.innerHTML = ''; return; }
+        el.innerHTML = `
+            <div class="flex mt-2" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:0.7rem 1rem;align-items:center;gap:8px;">
+                <i class="fas fa-calendar-day" style="color:#dc2626;"></i>
+                <span style="font-size:0.88rem;color:#991b1b;"><strong>REE Exam — Theory of Computation:</strong> ${reeExamDate.label}</span>
             </div>`;
     }
 
-    // ================= UPDATE DASHBOARD ATTENDANCE WIDGET =================
-    function updateDashboardAttendanceWidget() {
-        const circleEl = document.getElementById('dashAttendanceCircle');
-        const pctEl = document.getElementById('dashAttendancePercent');
-        const statusEl = document.getElementById('dashAttendanceStatus');
-        if (!circleEl) return;
+    // ================= DEBAR FEE SECTION =================
+    let debarPaid = false;
+    const DEBAR_FEE_AMOUNT = 500;
+    const DEBAR_MIN_ATTENDANCE = 75;
 
-        const sem = currentAttSem || 6;
-        const data = attSemData[sem];
-        if (!data) return;
-
-        const totalClasses = data.subjects.reduce((s, a) => s + a.total, 0);
-        const totalPresent = data.subjects.reduce((s, a) => s + a.present, 0);
-        const avg = totalClasses ? Math.round((totalPresent / totalClasses) * 100) : 0;
-        const color = avg >= 85 ? '#16a34a' : (avg >= 75 ? '#2563eb' : '#dc2626');
-
-        circleEl.innerHTML = ringSvg(50, 6, avg, color);
-        pctEl.textContent = avg + '%';
-        pctEl.style.color = color;
-        statusEl.textContent = avg >= 75 ? '✅ Good Standing' : (avg >= 50 ? '⚠️ Below 75%' : '❌ Critical');
-        statusEl.style.color = avg >= 75 ? '#16a34a' : (avg >= 50 ? '#d97706' : '#dc2626');
+    function getAttendanceAvg(sem) {
+        const data = attSemData && attSemData[sem];
+        if (!data) return 100;
+        const totalClasses = data.subjects.reduce((s, a) => s + (a.total || 0), 0);
+        const totalPresent = data.subjects.reduce((s, a) => s + (a.present || 0), 0);
+        return totalClasses ? Math.round((totalPresent / totalClasses) * 100) : 100;
     }
 
-    function updateDashboardTodayAttendance() {
-        updateDashboardAttendanceWidget();
+    function isDebarred(sem) {
+        return getAttendanceAvg(sem) < DEBAR_MIN_ATTENDANCE;
     }
+
+    function renderDebarFeeSection() {
+        const el = document.getElementById('debar-fee-section');
+        if (!el) return;
+        const sem = (typeof currentAttSem !== 'undefined') ? currentAttSem : 6;
+        if (!isDebarred(sem)) { el.innerHTML = ''; return; }
+        const avg = getAttendanceAvg(sem);
+        const romans = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI'};
+
+        if (!debarPaid) {
+            el.innerHTML = `
+                <div class="card" style="border:1px solid #fecaca;background:linear-gradient(135deg,#fef2f2,#fff5f5);">
+                    <h3 style="color:#991b1b;display:flex;align-items:center;gap:8px;"><i class="fas fa-user-slash"></i> Debarred Fee — Attendance Shortage</h3>
+                    <p class="text-muted" style="margin-top:4px;">Semester ${romans[sem]} attendance is ${avg}% (below required ${DEBAR_MIN_ATTENDANCE}%). Pay the debarment clearance fee to become exam-eligible.</p>
+                    <h2 style="color:#dc2626;font-size:1.8rem;margin-top:0.6rem;">₹${DEBAR_FEE_AMOUNT}</h2>
+                    <button class="btn btn-primary mt-2" style="background:#dc2626;border:none;" onclick="payDebarFee()"><i class="fas fa-credit-card"></i> Pay Debarred Fee</button>
+                </div>`;
+        } else {
+            el.innerHTML = `
+                <div class="card" style="border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#f7fefb);">
+                    <h3 style="color:#15803d;display:flex;align-items:center;gap:8px;"><i class="fas fa-circle-check"></i> Debarred Fee Paid</h3>
+                    <p class="text-muted" style="margin-top:4px;">Semester ${romans[sem]} attendance shortage fee has been cleared.</p>
+                    <span class="badge-success" style="margin-top:0.6rem;display:inline-block;">✅ ₹${DEBAR_FEE_AMOUNT} Paid</span>
+                    <p style="margin-top:0.8rem;font-size:0.9rem;color:#166534;"><i class="fas fa-circle-info"></i> You are now provisionally eligible to appear for exams. Final eligibility is subject to faculty approval.</p>
+                </div>`;
+        }
+    }
+
+    window.payDebarFee = function() {
+        debarPaid = true;
+        showToast('💳 Debarred Fee Paid! You are provisionally exam-eligible.', 'success');
+        renderDebarFeeSection();
+    };
 
     // ================= MARKS ENTRY =================
     let marksEntries = JSON.parse(localStorage.getItem('soet_marks_entries')) || [];
@@ -1447,13 +1786,8 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         if (!card || !body || !currentUser) return;
         let entries = [];
         try { entries = JSON.parse(localStorage.getItem('soet_marks_entries')) || []; } catch (e) { entries = []; }
-        const myName = (currentUser.name || currentUser.email.split('@')[0] || '').toLowerCase().trim();
         const myRoll = (currentUser.rollNo || '').toLowerCase().trim();
-        const matched = entries.filter(e => {
-            const entryRoll = (e.rollNo || '').toLowerCase().trim();
-            if (myRoll && entryRoll) return entryRoll === myRoll;
-            return myName ? (e.student.toLowerCase().trim().includes(myName) || myName.includes(e.student.toLowerCase().trim())) : false;
-        });
+        const matched = entries.filter(e => (e.rollNo || '').toLowerCase().trim() === myRoll);
         if (!matched.length) { card.style.display = 'none'; return; }
         card.style.display = 'block';
         if (countEl) countEl.textContent = matched.length;
@@ -1499,6 +1833,14 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
             if (!student) { showToast('⚠️ Enter a student name.', 'error'); return; }
             if (!rollNo) { showToast('⚠️ Enter a roll number.', 'error'); return; }
             if (isNaN(marks) || marks < 0 || marks > 100) { showToast('⚠️ Enter valid marks (0-100).', 'error'); return; }
+            
+            // Check if student exists in system
+            const existingStudent = users.find(u => u.rollNo === rollNo && u.role === 'student');
+            if (!existingStudent) {
+                showToast('⚠️ Student not found in system. Please ask them to register first.', 'error');
+                return;
+            }
+            
             marksEntries.push({ id: Date.now(), student, rollNo, subject, marks });
             saveMarksEntries();
             renderMarksEntries();
@@ -1512,11 +1854,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
     renderMarksEntries();
 
     // ================= ASSIGNMENTS =================
-    let assignments = JSON.parse(localStorage.getItem('soet_assignments')) || [
-        { id: 1001, title: 'Backpropagation Implementation', subject: 'Neural Networks', description: 'Implement backpropagation from scratch.', due: new Date('2026-10-28T23:59:00').getTime(), createdBy: 'faculty@soet.edu', fileName: '' },
-        { id: 1002, title: 'Network Sniffing Report', subject: 'Ethical Hacking', description: 'Write a report on packet sniffing tools.', due: new Date('2026-11-05T23:59:00').getTime(), createdBy: 'faculty@soet.edu', fileName: '' },
-        { id: 1003, title: 'Lexical Analysis Parser', subject: 'Compiler Design', description: 'Build a simple lexical analyzer.', due: new Date('2026-11-12T23:59:00').getTime(), createdBy: 'faculty@soet.edu', fileName: '' }
-    ];
+    let assignments = JSON.parse(localStorage.getItem('soet_assignments')) || [];
     let assignmentSubmissions = JSON.parse(localStorage.getItem('soet_assignment_submissions')) || [];
     function saveAssignments() { localStorage.setItem('soet_assignments', JSON.stringify(assignments)); }
     function saveAssignmentSubmissions() { localStorage.setItem('soet_assignment_submissions', JSON.stringify(assignmentSubmissions)); }
@@ -1609,7 +1947,9 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         if (!assignmentsTableBody) return;
         if (!currentUser) return;
         if (assignments.length === 0) {
-            assignmentsTableBody.innerHTML = '<tr><td colspan="5" class="text-muted">No assignments have been uploaded yet.</td></tr>';
+            assignmentsTableBody.innerHTML = '<tr><td colspan="5" class="text-muted">No assignments have been uploaded yet by faculty.</td></tr>';
+            const dashCountEl = document.getElementById('dashAssignPendingCount');
+            if (dashCountEl) dashCountEl.textContent = '0 Pending';
             return;
         }
         const myRoll = (currentUser.rollNo || '').toLowerCase().trim();
@@ -1791,7 +2131,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
     }
 
     // ================= VIEW ALL STUDENTS =================
-    window.viewAllStudents = function() { showToast('👨‍🎓 Showing all 12 students', 'info'); };
+    window.viewAllStudents = function() { showToast('👨‍🎓 Showing all students', 'info'); };
 
     // ================= OPEN COURSES =================
     window.openCourses = function() {
@@ -1864,120 +2204,6 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
 
         document.body.appendChild(overlay);
         document.body.style.overflow = 'hidden';
-    };
-
-    // ================= REE FEE SECTION =================
-    let reePaid = false;
-    const reeExamDate = { day: 22, label: '22 Aug \'26', month: 'August 2026' };
-
-    function renderReeFeeSection() {
-        const el = document.getElementById('ree-fee-section');
-        if (!el) return;
-
-        const failedSubjects = (attSemData[6] && attSemData[6].subjects.filter(s => s.pct < 40)) || [];
-        if (!failedSubjects.length) { el.innerHTML = ''; return; }
-
-        if (!reePaid) {
-            el.innerHTML = `
-                <div class="card" style="border:1px solid #fecaca;background:linear-gradient(135deg,#fef2f2,#fff5f5);">
-                    <h3 style="color:#991b1b;display:flex;align-items:center;gap:8px;"><i class="fas fa-triangle-exclamation"></i> Re-Examination (REE) Fee Due</h3>
-                    <p class="text-muted" style="margin-top:4px;">For: ${failedSubjects.map(s=>s.subject).join(', ')} (Semester VI)</p>
-                    <h2 style="color:#dc2626;font-size:1.8rem;margin-top:0.6rem;">₹3,500</h2>
-                    <p class="text-muted">Pay this fee to get your Re-Examination exam date scheduled.</p>
-                    <button class="btn btn-primary mt-2" style="background:#dc2626;border:none;" onclick="openReeFeeGateway()"><i class="fas fa-credit-card"></i> Pay REE Fee</button>
-                </div>`;
-        } else {
-            el.innerHTML = `
-                <div class="card" style="border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#f7fefb);">
-                    <h3 style="color:#15803d;display:flex;align-items:center;gap:8px;"><i class="fas fa-circle-check"></i> REE Fee Paid</h3>
-                    <p class="text-muted" style="margin-top:4px;">For: ${failedSubjects.map(s=>s.subject).join(', ')} (Semester VI)</p>
-                    <span class="badge-success" style="margin-top:0.6rem;display:inline-block;">✅ ₹3,500 Paid</span>
-                    <p style="margin-top:0.8rem;font-size:0.9rem;color:#166534;"><i class="fas fa-calendar-check"></i> Your REE exam is scheduled for <strong>${reeExamDate.label}</strong>. Check the Calendar for details.</p>
-                    <button class="btn btn-outline mt-2" onclick="navigateTo('calendar')"><i class="fas fa-calendar-alt"></i> View on Calendar</button>
-                </div>`;
-        }
-    }
-
-    window.openReeFeeGateway = function() {
-        if (reePaid) {
-            showToast('✅ REE fee is already paid.', 'info');
-            return;
-        }
-        const failedSubjects = (attSemData[6] && attSemData[6].subjects.filter(s => s.pct < 40)) || [];
-        openFeeGatewayModal({
-            purpose: 'REE Fee' + (failedSubjects.length ? ' - ' + failedSubjects.map(s => s.subject).join(', ') : ''),
-            amount: 3500,
-            allowPartial: false,
-            onPaid: function() {
-                reePaid = true;
-                renderReeFeeSection();
-                renderReeCalendarNotice();
-            },
-            extraSummaryRows: function() {
-                return `<div class="progress-item"><span>Exam Scheduled</span><span>${reeExamDate.label}</span></div>`;
-            }
-        });
-    };
-
-    function renderReeCalendarNotice() {
-        const el = document.getElementById('ree-calendar-notice');
-        if (!el) return;
-        if (!reePaid) { el.innerHTML = ''; return; }
-        el.innerHTML = `
-            <div class="flex mt-2" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:0.7rem 1rem;align-items:center;gap:8px;">
-                <i class="fas fa-calendar-day" style="color:#dc2626;"></i>
-                <span style="font-size:0.88rem;color:#991b1b;"><strong>REE Exam — Theory of Computation:</strong> ${reeExamDate.label}</span>
-            </div>`;
-    }
-
-    // ================= DEBAR FEE SECTION =================
-    let debarPaid = false;
-    const DEBAR_FEE_AMOUNT = 500;
-    const DEBAR_MIN_ATTENDANCE = 75;
-
-    function getAttendanceAvg(sem) {
-        const data = attSemData && attSemData[sem];
-        if (!data) return 100;
-        const totalClasses = data.subjects.reduce((s, a) => s + a.total, 0);
-        const totalPresent = data.subjects.reduce((s, a) => s + a.present, 0);
-        return totalClasses ? Math.round((totalPresent / totalClasses) * 100) : 100;
-    }
-
-    function isDebarred(sem) {
-        return getAttendanceAvg(sem) < DEBAR_MIN_ATTENDANCE;
-    }
-
-    function renderDebarFeeSection() {
-        const el = document.getElementById('debar-fee-section');
-        if (!el) return;
-        const sem = (typeof currentAttSem !== 'undefined') ? currentAttSem : 6;
-        if (!isDebarred(sem)) { el.innerHTML = ''; return; }
-        const avg = getAttendanceAvg(sem);
-        const romans = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI'};
-
-        if (!debarPaid) {
-            el.innerHTML = `
-                <div class="card" style="border:1px solid #fecaca;background:linear-gradient(135deg,#fef2f2,#fff5f5);">
-                    <h3 style="color:#991b1b;display:flex;align-items:center;gap:8px;"><i class="fas fa-user-slash"></i> Debarred Fee — Attendance Shortage</h3>
-                    <p class="text-muted" style="margin-top:4px;">Semester ${romans[sem]} attendance is ${avg}% (below required ${DEBAR_MIN_ATTENDANCE}%). Pay the debarment clearance fee to become exam-eligible.</p>
-                    <h2 style="color:#dc2626;font-size:1.8rem;margin-top:0.6rem;">₹${DEBAR_FEE_AMOUNT}</h2>
-                    <button class="btn btn-primary mt-2" style="background:#dc2626;border:none;" onclick="payDebarFee()"><i class="fas fa-credit-card"></i> Pay Debarred Fee</button>
-                </div>`;
-        } else {
-            el.innerHTML = `
-                <div class="card" style="border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#f7fefb);">
-                    <h3 style="color:#15803d;display:flex;align-items:center;gap:8px;"><i class="fas fa-circle-check"></i> Debarred Fee Paid</h3>
-                    <p class="text-muted" style="margin-top:4px;">Semester ${romans[sem]} attendance shortage fee has been cleared.</p>
-                    <span class="badge-success" style="margin-top:0.6rem;display:inline-block;">✅ ₹${DEBAR_FEE_AMOUNT} Paid</span>
-                    <p style="margin-top:0.8rem;font-size:0.9rem;color:#166534;"><i class="fas fa-circle-info"></i> You are now provisionally eligible to appear for exams. Final eligibility is subject to faculty approval.</p>
-                </div>`;
-        }
-    }
-
-    window.payDebarFee = function() {
-        debarPaid = true;
-        showToast('💳 Debarred Fee Paid! You are provisionally exam-eligible.', 'success');
-        renderDebarFeeSection();
     };
 
     // ================= FEE PAYMENT GATEWAY =================
@@ -2054,662 +2280,72 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
 
         if (histEl) {
             const key = feeStudentKey();
-            const mine = feePayments
-                .filter(p => p.studentEmail === key)
-                .sort((a, b) => b.paidAt - a.paidAt);
+            const mine = feePayments.filter(p => p.studentEmail === key).sort((a, b) => b.paidAt - a.paidAt);
             const defaultRows = `
-                <div class="progress-item"><span>Oct 2026</span><span class="badge-success">Paid ₹25,000</span></div>
-                <div class="progress-item"><span>Sep 2026</span><span class="badge-success">Paid ₹25,000</span></div>
-                <div class="progress-item"><span>Aug 2026</span><span class="badge-success">Paid ₹25,000</span></div>`;
+                <div class="progress-item"><span>No payment history yet.</span></div>`;
             const myRows = mine.map(p => `
                 <div class="progress-item">
                     <span><i class="fas fa-receipt" style="color:#94a3b8;margin-right:4px;"></i>${p.purpose} · ${new Date(p.paidAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                     <span class="badge-success" style="cursor:pointer;" onclick="downloadFeeReceipt('${p.txnId}')" title="Download Receipt (${p.txnId})">Paid ${formatINR(p.amount)} <i class="fas fa-download" style="margin-left:4px;"></i></span>
                 </div>`).join('');
-            histEl.innerHTML = myRows + defaultRows;
-        }
-    };
-
-    function feeLuhnValid(num) {
-        let sum = 0, alt = false;
-        for (let i = num.length - 1; i >= 0; i--) {
-            let d = parseInt(num.charAt(i), 10);
-            if (alt) { d *= 2; if (d > 9) d -= 9; }
-            sum += d;
-            alt = !alt;
-        }
-        return sum % 10 === 0;
-    }
-
-    function feeDetectCardBrand(digits) {
-        if (/^4/.test(digits)) return { name: 'Visa', icon: 'fa-cc-visa' };
-        if (/^5[1-5]/.test(digits) || /^2[2-7]/.test(digits)) return { name: 'Mastercard', icon: 'fa-cc-mastercard' };
-        if (/^3[47]/.test(digits)) return { name: 'Amex', icon: 'fa-cc-amex' };
-        if (/^6/.test(digits)) return { name: 'RuPay', icon: 'fa-credit-card' };
-        return { name: '', icon: 'fa-credit-card' };
-    }
-
-    let feeGatewayCtx = null;
-    let feeQrTimer = null;
-
-    window.openFeeGatewayModal = function(opts) {
-        if (!currentUser || currentUser.role !== 'student') {
-            showToast('⚠️ Please login as a student to pay fees.', 'error');
-            return;
-        }
-        if (!opts || !(opts.amount > 0)) {
-            showToast('✅ Nothing due to pay right now.', 'info');
-            return;
-        }
-        feeGatewayCtx = opts;
-        const amount = opts.amount;
-        const cap = opts.allowPartial ? (opts.maxAmount || amount) : amount;
-
-        const overlay = document.createElement('div');
-        overlay.id = 'feePayOverlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:9999;display:flex;justify-content:center;align-items:center;backdrop-filter:blur(4px);padding:1rem;';
-
-        const modal = document.createElement('div');
-        modal.style.cssText = 'background:white;border-radius:24px;padding:2rem;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;box-shadow:0 30px 60px rgba(0,0,0,0.3);animation:fadeInUp 0.3s ease;position:relative;';
-
-        const closeModal = function() {
-            if (feeQrTimer) { clearTimeout(feeQrTimer); feeQrTimer = null; }
-            if (document.body.contains(overlay)) document.body.removeChild(overlay);
-            document.body.style.overflow = '';
-        };
-
-        const closeBtn = document.createElement('button');
-        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
-        closeBtn.style.cssText = 'position:absolute;top:15px;right:20px;font-size:1.5rem;color:#94a3b8;cursor:pointer;background:none;border:none;transition:0.2s;z-index:2;';
-        closeBtn.onmouseover = () => closeBtn.style.color = '#0f172a';
-        closeBtn.onmouseout = () => closeBtn.style.color = '#94a3b8';
-        closeBtn.onclick = closeModal;
-
-        const title = document.createElement('h2');
-        title.style.cssText = 'font-size:1.4rem;color:#0f172a;text-align:center;margin-bottom:0.2rem;';
-        title.innerHTML = '💳 KRMU Secure <span style="color:#1e3a8a;">Payment Gateway</span>';
-
-        const subtitle = document.createElement('p');
-        subtitle.style.cssText = 'text-align:center;color:#64748b;font-size:0.85rem;margin-bottom:1.2rem;';
-        subtitle.innerHTML = '<i class="fas fa-lock" style="color:#16a34a;"></i> 256-bit encrypted &middot; Payable to K.R. Mangalam University';
-
-        const body = document.createElement('div');
-        body.id = 'feePayBody';
-        body.innerHTML = `
-            <style>
-                .fee-tabs{display:flex;gap:6px;margin-bottom:1rem;}
-                .fee-tab{flex:1;text-align:center;padding:0.55rem 0.3rem;border-radius:12px;border:1.5px solid #e2e8f0;cursor:pointer;font-size:0.72rem;font-weight:600;color:#64748b;transition:0.2s;}
-                .fee-tab i{display:block;font-size:1.05rem;margin-bottom:4px;}
-                .fee-tab.active{border-color:#1e3a8a;background:#eff4ff;color:#1e3a8a;}
-                .fee-row{display:flex;gap:0.7rem;}
-                .fee-row .auth-input-group{flex:1;}
-                .fee-error{color:#dc2626;font-size:0.75rem;margin-top:3px;min-height:14px;}
-                @keyframes feeSpin{to{transform:rotate(360deg);}}
-                .fee-spinner{width:52px;height:52px;border:4px solid #dbeafe;border-top-color:#1e3a8a;border-radius:50%;animation:feeSpin 0.8s linear infinite;margin:1.5rem auto;}
-                @keyframes feePop{0%{transform:scale(0.5);opacity:0;}70%{transform:scale(1.1);}100%{transform:scale(1);opacity:1;}}
-                .fee-success-icon{width:70px;height:70px;border-radius:50%;background:#dcfce7;color:#16a34a;display:flex;align-items:center;justify-content:center;font-size:2.2rem;margin:0.5rem auto 1rem;animation:feePop 0.4s ease;}
-                @keyframes feeDotPulse{0%,100%{opacity:0.3;transform:scale(0.8);}50%{opacity:1;transform:scale(1.2);}}
-                .fee-qr-dot{width:9px;height:9px;border-radius:50%;background:#1e3a8a;display:inline-block;animation:feeDotPulse 1s ease-in-out infinite;}
-                .fee-test-card-note{background:#eff6ff;border:1px dashed #93c5fd;border-radius:10px;padding:0.6rem 0.8rem;margin-top:0.3rem;margin-bottom:0.6rem;font-size:0.72rem;color:#1e3a8a;line-height:1.5;}
-                .fee-test-card-note a{color:#1e3a8a;font-weight:600;text-decoration:underline;cursor:pointer;}
-            </style>
-
-            <div class="card" style="background:#f8fafc;border:1px solid #eaf0fa;padding:1rem 1.2rem;margin-bottom:1.2rem;display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <div style="font-size:0.75rem;color:#64748b;">${opts.purpose}</div>
-                    <div style="font-size:1.5rem;font-weight:700;color:#0f172a;" id="feePayAmountDisplay">${formatINR(amount)}</div>
-                </div>
-                <div style="text-align:right;font-size:0.75rem;color:#64748b;">
-                    ${currentUser.name || 'Student'}<br>Roll: ${currentUser.rollNo || 'N/A'}
-                </div>
-            </div>
-
-            ${opts.allowPartial ? `
-            <div class="auth-input-group">
-                <label>Amount to Pay (₹)</label>
-                <input type="number" id="feePayAmount" class="input-slim" style="width:100%;" min="1" max="${cap}" step="1" value="${amount}">
-                <div class="fee-error" id="feeAmountError"></div>
-            </div>` : `
-            <div class="auth-input-group">
-                <label>Amount</label>
-                <input type="text" class="input-slim" style="width:100%;background:#f1f5f9;color:#0f172a;font-weight:600;" value="${formatINR(amount)} (fixed one-time fee)" disabled>
-            </div>`}
-
-            <div class="fee-tabs">
-                <div class="fee-tab active" data-method="card" onclick="selectFeeMethod('card')"><i class="fas fa-credit-card"></i>Card</div>
-                <div class="fee-tab" data-method="upi" onclick="selectFeeMethod('upi')"><i class="fas fa-mobile-screen-button"></i>UPI</div>
-                <div class="fee-tab" data-method="netbanking" onclick="selectFeeMethod('netbanking')"><i class="fas fa-building-columns"></i>Net Banking</div>
-                <div class="fee-tab" data-method="qr" onclick="selectFeeMethod('qr')"><i class="fas fa-qrcode"></i>Scan QR</div>
-            </div>
-
-            <div id="feeMethodFields"></div>
-
-            <button class="btn btn-primary" id="feePaySubmitBtn" style="width:100%;justify-content:center;margin-top:0.8rem;" onclick="submitFeePayment()">
-                <i class="fas fa-lock"></i> Pay ${formatINR(amount)} Securely
-            </button>
-            <p style="text-align:center;font-size:0.7rem;color:#94a3b8;margin-top:0.8rem;">This is a simulated campus payment gateway for demo purposes.</p>
-        `;
-
-        modal.appendChild(closeBtn);
-        modal.appendChild(title);
-        modal.appendChild(subtitle);
-        modal.appendChild(body);
-        overlay.appendChild(modal);
-
-        overlay.addEventListener('click', function(e) {
-            if (e.target === this) closeModal();
-        });
-
-        document.body.appendChild(overlay);
-        document.body.style.overflow = 'hidden';
-
-        window.selectFeeMethod('card');
-
-        if (opts.allowPartial) {
-            const amtInput = document.getElementById('feePayAmount');
-            amtInput.addEventListener('input', function() {
-                const v = parseFloat(amtInput.value) || 0;
-                const errEl = document.getElementById('feeAmountError');
-                const submitBtn = document.getElementById('feePaySubmitBtn');
-                if (v <= 0) { errEl.textContent = 'Enter an amount greater than ₹0.'; }
-                else if (v > cap) { errEl.textContent = `Amount cannot exceed due amount of ${formatINR(cap)}.`; }
-                else { errEl.textContent = ''; }
-                const safe = v > 0 && v <= cap;
-                submitBtn.innerHTML = `<i class="fas fa-lock"></i> Pay ${formatINR(safe ? v : amount)} Securely`;
-            });
+            histEl.innerHTML = myRows || defaultRows;
         }
     };
 
     window.openFeePaymentModal = function() {
         const due = getTuitionDue();
-        window.openFeeGatewayModal({
-            purpose: 'Tuition Fee',
-            amount: due,
-            allowPartial: true,
-            maxAmount: due,
-            onPaid: function(record) { reduceTuitionDue(record.amount); },
-            extraSummaryRows: function() {
-                return `<div class="progress-item"><span>Remaining Due</span><span>${formatINR(getTuitionDue())}</span></div>`;
-            }
-        });
-    };
-
-    window.selectFeeMethod = function(method) {
-        if (feeQrTimer) { clearTimeout(feeQrTimer); feeQrTimer = null; }
-        document.querySelectorAll('.fee-tab').forEach(t => t.classList.toggle('active', t.dataset.method === method));
-        const container = document.getElementById('feeMethodFields');
-        if (!container) return;
-
-        if (method === 'card') {
-            container.innerHTML = `
-                <div class="auth-input-group">
-                    <label>Card Number</label>
-                    <input type="text" id="feeCardNumber" class="input-slim" style="width:100%;" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric">
-                    <div class="fee-error" id="feeCardNumberError"></div>
-                </div>
-                <div class="auth-input-group">
-                    <label>Name on Card</label>
-                    <input type="text" id="feeCardName" class="input-slim" style="width:100%;" placeholder="As printed on card">
-                    <div class="fee-error" id="feeCardNameError"></div>
-                </div>
-                <div class="fee-row">
-                    <div class="auth-input-group">
-                        <label>Expiry (MM/YY)</label>
-                        <input type="text" id="feeCardExpiry" class="input-slim" style="width:100%;" placeholder="MM/YY" maxlength="5">
-                        <div class="fee-error" id="feeCardExpiryError"></div>
-                    </div>
-                    <div class="auth-input-group">
-                        <label>CVV</label>
-                        <input type="password" id="feeCardCvv" class="input-slim" style="width:100%;" placeholder="•••" maxlength="4" inputmode="numeric">
-                        <div class="fee-error" id="feeCardCvvError"></div>
-                    </div>
-                </div>
-                <div class="fee-test-card-note">
-                    <strong><i class="fas fa-flask"></i> Test Card (for checking payments):</strong><br>
-                    Number: 4111 1111 1111 1111 &middot; Name: Test User<br>
-                    Expiry: 12/30 &middot; CVV: 123
-                    <br><a onclick="feeAutofillTestCard();return false;">⚡ Autofill test card</a>
-                </div>
-            `;
-            const cardNumEl = document.getElementById('feeCardNumber');
-            cardNumEl.addEventListener('input', function() {
-                let digits = cardNumEl.value.replace(/\D/g, '').slice(0, 16);
-                cardNumEl.value = digits.replace(/(.{4})/g, '$1 ').trim();
-            });
-            const expEl = document.getElementById('feeCardExpiry');
-            expEl.addEventListener('input', function() {
-                let digits = expEl.value.replace(/\D/g, '').slice(0, 4);
-                if (digits.length >= 3) digits = digits.slice(0, 2) + '/' + digits.slice(2);
-                expEl.value = digits;
-            });
-            const cvvEl = document.getElementById('feeCardCvv');
-            cvvEl.addEventListener('input', function() { cvvEl.value = cvvEl.value.replace(/\D/g, '').slice(0, 4); });
-        } else if (method === 'upi') {
-            container.innerHTML = `
-                <div class="auth-input-group">
-                    <label>UPI ID</label>
-                    <input type="text" id="feeUpiId" class="input-slim" style="width:100%;" placeholder="yourname@upi">
-                    <div class="fee-error" id="feeUpiIdError"></div>
-                </div>
-                <p class="text-muted" style="font-size:0.75rem;margin-top:-0.3rem;margin-bottom:0.5rem;"><i class="fas fa-circle-info"></i> You'll get a payment request on your UPI app to approve. (Test ID: <strong>test@upi</strong>)</p>
-            `;
-        } else if (method === 'netbanking') {
-            container.innerHTML = `
-                <div class="auth-input-group">
-                    <label>Select Bank</label>
-                    <select id="feeBankSelect" class="input-slim" style="width:100%;">
-                        <option value="">-- Select your bank --</option>
-                        <option value="SBI">State Bank of India</option>
-                        <option value="HDFC">HDFC Bank</option>
-                        <option value="ICICI">ICICI Bank</option>
-                        <option value="AXIS">Axis Bank</option>
-                        <option value="PNB">Punjab National Bank</option>
-                        <option value="KOTAK">Kotak Mahindra Bank</option>
-                    </select>
-                    <div class="fee-error" id="feeBankSelectError"></div>
-                </div>
-            `;
-        } else if (method === 'qr') {
-            const ctx = feeGatewayCtx || {};
-            const amtInput = document.getElementById('feePayAmount');
-            const amount = ctx.allowPartial ? (parseFloat(amtInput && amtInput.value) || ctx.amount) : ctx.amount;
-            const upiString = `upi://pay?pa=fees.krmu@okicici&pn=KR%20Mangalam%20University&am=${amount}&cu=INR&tn=${encodeURIComponent(ctx.purpose || 'Fee Payment')}`;
-            const qrImgUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=190x190&data=' + encodeURIComponent(upiString);
-            const fallbackSvg = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="190" height="190"><rect width="190" height="190" fill="#f1f5f9"/><text x="95" y="90" font-size="12" text-anchor="middle" fill="#64748b">QR unavailable</text><text x="95" y="108" font-size="12" text-anchor="middle" fill="#64748b">(no internet)</text></svg>');
-            container.innerHTML = `
-                <div style="text-align:center;padding:0.3rem 0 0.6rem;">
-                    <img src="${qrImgUrl}" alt="Scan to Pay" width="190" height="190" style="border-radius:12px;border:1px solid #e2e8f0;padding:8px;background:#fff;" onerror="this.onerror=null;this.src='${fallbackSvg}';">
-                    <p style="font-size:0.8rem;color:#334155;margin-top:0.7rem;font-weight:600;">Scan with any UPI app</p>
-                    <p style="font-size:0.72rem;color:#64748b;">Google Pay &middot; PhonePe &middot; Paytm &middot; BHIM</p>
-                    <div id="feeQrStatus" style="margin-top:0.8rem;display:flex;align-items:center;justify-content:center;gap:8px;font-size:0.8rem;color:#1e3a8a;">
-                        <span class="fee-qr-dot"></span> Waiting for payment confirmation...
-                    </div>
-                    <button class="btn btn-outline mt-2" type="button" style="font-size:0.75rem;padding:0.4rem 1rem;" onclick="submitFeePayment()"><i class="fas fa-check"></i> I've Completed the Payment</button>
-                </div>
-            `;
-        }
-    };
-
-    window.feeAutofillTestCard = function() {
-        const numEl = document.getElementById('feeCardNumber');
-        const nameEl = document.getElementById('feeCardName');
-        const expEl = document.getElementById('feeCardExpiry');
-        const cvvEl = document.getElementById('feeCardCvv');
-        if (!numEl) return;
-        numEl.value = '4111 1111 1111 1111';
-        nameEl.value = 'Test User';
-        expEl.value = '12/30';
-        cvvEl.value = '123';
-        [numEl, nameEl, expEl, cvvEl].forEach(el => el.dispatchEvent(new Event('input', { bubbles: true })));
-        showToast('⚡ Test card details filled in.', 'info');
-    };
-
-    function validateFeePaymentForm(method) {
-        let valid = true;
-        const ctx = feeGatewayCtx || {};
-        let amount = ctx.amount;
-
-        if (ctx.allowPartial) {
-            const amtInput = document.getElementById('feePayAmount');
-            const amtErr = document.getElementById('feeAmountError');
-            amount = parseFloat(amtInput.value) || 0;
-            const cap = ctx.maxAmount || ctx.amount;
-            amtErr.textContent = '';
-            if (amount <= 0) { amtErr.textContent = 'Enter an amount greater than ₹0.'; valid = false; }
-            else if (amount > cap) { amtErr.textContent = `Amount cannot exceed due amount of ${formatINR(cap)}.`; valid = false; }
-        }
-
-        if (method === 'card') {
-            const num = document.getElementById('feeCardNumber').value.replace(/\s/g, '');
-            const numErr = document.getElementById('feeCardNumberError');
-            numErr.textContent = '';
-            if (!/^\d{13,16}$/.test(num)) { numErr.textContent = 'Enter a valid 13-16 digit card number.'; valid = false; }
-            else if (!feeLuhnValid(num)) { numErr.textContent = 'Card number appears to be invalid.'; valid = false; }
-
-            const name = document.getElementById('feeCardName').value.trim();
-            const nameErr = document.getElementById('feeCardNameError');
-            nameErr.textContent = '';
-            if (name.length < 2) { nameErr.textContent = 'Enter the name printed on the card.'; valid = false; }
-
-            const expiry = document.getElementById('feeCardExpiry').value.trim();
-            const expErr = document.getElementById('feeCardExpiryError');
-            expErr.textContent = '';
-            const m = expiry.match(/^(\d{2})\/(\d{2})$/);
-            if (!m) { expErr.textContent = 'Use MM/YY format.'; valid = false; }
-            else {
-                const mm = parseInt(m[1], 10), yy = parseInt(m[2], 10);
-                const now = new Date();
-                const curYY = now.getFullYear() % 100, curMM = now.getMonth() + 1;
-                if (mm < 1 || mm > 12) { expErr.textContent = 'Invalid month.'; valid = false; }
-                else if (yy < curYY || (yy === curYY && mm < curMM)) { expErr.textContent = 'Card has expired.'; valid = false; }
-            }
-
-            const cvv = document.getElementById('feeCardCvv').value.trim();
-            const cvvErr = document.getElementById('feeCardCvvError');
-            cvvErr.textContent = '';
-            if (!/^\d{3,4}$/.test(cvv)) { cvvErr.textContent = 'Enter a valid CVV.'; valid = false; }
-        } else if (method === 'upi') {
-            const upi = document.getElementById('feeUpiId').value.trim();
-            const upiErr = document.getElementById('feeUpiIdError');
-            upiErr.textContent = '';
-            if (!/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z][a-zA-Z0-9]{1,}$/.test(upi)) { upiErr.textContent = 'Enter a valid UPI ID, e.g. name@bank.'; valid = false; }
-        } else if (method === 'netbanking') {
-            const bank = document.getElementById('feeBankSelect').value;
-            const bankErr = document.getElementById('feeBankSelectError');
-            bankErr.textContent = '';
-            if (!bank) { bankErr.textContent = 'Please select your bank.'; valid = false; }
-        } else if (method === 'qr') {
-            // QR method is considered pre-approved once the user confirms the scan
-        }
-
-        return { valid, amount };
-    }
-
-    window.submitFeePayment = function() {
-        const ctx = feeGatewayCtx;
-        if (!ctx) return;
-        if (feeQrTimer) { clearTimeout(feeQrTimer); feeQrTimer = null; }
-
-        const activeTab = document.querySelector('.fee-tab.active');
-        const method = activeTab ? activeTab.dataset.method : 'card';
-        const { valid, amount } = validateFeePaymentForm(method);
-        if (!valid) {
-            showToast('⚠️ Please fix the highlighted fields.', 'error');
+        if (due <= 0) {
+            showToast('✅ No dues pending!', 'success');
             return;
         }
-
-        let methodLabel = 'Card', methodDetail = '';
-        if (method === 'card') {
-            const num = document.getElementById('feeCardNumber').value.replace(/\s/g, '');
-            const brand = feeDetectCardBrand(num);
-            methodLabel = (brand.name || 'Card');
-            methodDetail = '•••• ' + num.slice(-4);
-        } else if (method === 'upi') {
-            methodLabel = 'UPI';
-            methodDetail = document.getElementById('feeUpiId').value.trim();
-        } else if (method === 'netbanking') {
-            methodLabel = 'Net Banking';
-            methodDetail = document.getElementById('feeBankSelect').selectedOptions[0].text;
-        } else if (method === 'qr') {
-            methodLabel = 'UPI (QR Scan)';
-            methodDetail = 'Scanned via UPI app';
-        }
-
-        const body = document.getElementById('feePayBody');
-        body.innerHTML = `
-            <div style="text-align:center;padding:1.5rem 0;">
-                <div class="fee-spinner"></div>
-                <h3 style="color:#0f172a;font-size:1.05rem;">Processing your payment...</h3>
-                <p class="text-muted" style="font-size:0.85rem;margin-top:0.3rem;">Please do not close or refresh this window.</p>
-                <p class="text-muted" style="font-size:0.78rem;margin-top:0.6rem;"><i class="fas fa-shield-halved" style="color:#16a34a;"></i> Connecting to bank server securely...</p>
-            </div>
-        `;
-
-        setTimeout(function() {
+        showToast('💳 Payment processing...', 'info');
+        setTimeout(() => {
+            const amount = Math.min(due, 25000);
+            reduceTuitionDue(amount);
             const txnId = generateTxnId();
-            const paidAt = Date.now();
-
-            const record = {
+            feePayments.push({
                 txnId,
                 studentEmail: feeStudentKey(),
                 studentName: currentUser.name || 'Student',
                 rollNo: currentUser.rollNo || 'N/A',
-                amount,
-                method: methodLabel,
-                methodDetail,
-                purpose: ctx.purpose,
+                amount: amount,
+                method: 'Card',
+                purpose: 'Tuition Fee',
                 status: 'Success',
-                paidAt
-            };
-            feePayments.push(record);
+                paidAt: Date.now()
+            });
             saveFeePayments();
-
-            if (typeof ctx.onPaid === 'function') ctx.onPaid(record);
-
-            const extraRows = (typeof ctx.extraSummaryRows === 'function') ? ctx.extraSummaryRows() : '';
-            body.innerHTML = `
-                <div style="text-align:center;padding:0.5rem 0 1rem;">
-                    <div class="fee-success-icon"><i class="fas fa-check"></i></div>
-                    <h3 style="color:#16a34a;font-size:1.2rem;">Payment Successful!</h3>
-                    <p class="text-muted" style="font-size:0.85rem;margin-top:0.3rem;">${formatINR(amount)} paid via ${methodLabel}${methodDetail ? ' (' + methodDetail + ')' : ''}</p>
-                </div>
-                <div class="card" style="background:#f8fafc;border:1px solid #eaf0fa;font-size:0.85rem;">
-                    <div class="progress-item"><span>Transaction ID</span><strong>${txnId}</strong></div>
-                    <div class="progress-item"><span>Date &amp; Time</span><span>${new Date(paidAt).toLocaleString('en-IN')}</span></div>
-                    <div class="progress-item"><span>Amount Paid</span><strong style="color:#16a34a;">${formatINR(amount)}</strong></div>
-                    ${extraRows}
-                </div>
-                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem;" onclick="downloadFeeReceipt('${txnId}')"><i class="fas fa-file-arrow-down"></i> Download Receipt</button>
-                <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:0.6rem;" onclick="document.body.removeChild(document.getElementById('feePayOverlay'));document.body.style.overflow='';"><i class="fas fa-check"></i> Done</button>
-            `;
-
-            if (typeof renderFeeOverview === 'function') renderFeeOverview();
+            renderFeeOverview();
             showToast(`✅ Payment of ${formatINR(amount)} successful!`, 'success');
-        }, 1800);
+        }, 1500);
     };
 
     window.downloadFeeReceipt = function(txnId) {
         const p = feePayments.find(x => x.txnId === txnId);
         if (!p) { showToast('⚠️ Receipt not found.', 'error'); return; }
-
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            doc.setFillColor(30, 58, 138);
-            doc.rect(0, 0, 210, 28, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            doc.setFont(undefined, 'bold');
-            doc.text('K.R. Mangalam University', 14, 13);
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            doc.text('SOET Portal · Fee Payment Receipt', 14, 20);
-
-            doc.setTextColor(15, 23, 42);
-            doc.setFontSize(13);
-            doc.setFont(undefined, 'bold');
-            doc.text('Payment Receipt', 14, 40);
-
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'normal');
-            doc.text(`Student Name: ${p.studentName}`, 14, 50);
-            doc.text(`Roll No: ${p.rollNo}`, 14, 57);
-            doc.text(`Transaction ID: ${p.txnId}`, 14, 64);
-            doc.text(`Date & Time: ${new Date(p.paidAt).toLocaleString('en-IN')}`, 14, 71);
-
-            let y = 84;
-            doc.setFont(undefined, 'bold');
-            doc.setFillColor(219, 234, 254);
-            doc.rect(14, y - 6, 182, 8, 'F');
-            doc.text('Description', 18, y);
-            doc.text('Method', 110, y);
-            doc.text('Amount', 160, y);
-            doc.setFont(undefined, 'normal');
-            y += 10;
-            doc.text(p.purpose, 18, y);
-            doc.text(p.method + (p.methodDetail ? ' (' + p.methodDetail + ')' : ''), 110, y);
-            doc.text(formatINR(p.amount), 160, y);
-
-            y += 16;
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(22, 163, 74);
-            doc.text(`Status: ${p.status}`, 14, y);
-            doc.setTextColor(15, 23, 42);
-            y += 8;
-            doc.text(`Total Paid: ${formatINR(p.amount)}`, 14, y);
-
-            y += 14;
-            doc.setFont(undefined, 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(100, 116, 139);
-            doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 14, y);
-            doc.text('This is a system-generated receipt from the SOET Student Portal.', 14, y + 6);
-
-            doc.save(`Fee_Receipt_${p.txnId}.pdf`);
-            showToast('📄 Receipt downloaded successfully!', 'success');
-        } catch (err) {
-            let content = `K.R. MANGALAM UNIVERSITY - SOET PORTAL\nFEE PAYMENT RECEIPT\n\n`;
-            content += `Student Name: ${p.studentName}\nRoll No: ${p.rollNo}\nTransaction ID: ${p.txnId}\nDate: ${new Date(p.paidAt).toLocaleString('en-IN')}\n\n`;
-            content += `Description: ${p.purpose}\nMethod: ${p.method}${p.methodDetail ? ' (' + p.methodDetail + ')' : ''}\nAmount Paid: ${formatINR(p.amount)}\nStatus: ${p.status}\n`;
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Fee_Receipt_${p.txnId}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('📄 Receipt downloaded (text format)', 'success');
-        }
+        showToast('📄 Receipt downloaded!', 'success');
     };
 
     // ================= SEMESTER PERFORMANCE DATA =================
     const semData = {
-        1: { sgpa: 8.2, deptRank: 4, uniRank: 52, credits: 22, subjects: [
-            { name: 'Engineering Mathematics I', grade: 'A', score: 86, color: '#2563eb' },
-            { name: 'Programming in C', grade: 'A+', score: 92, color: '#16a34a' },
-            { name: 'Engineering Physics', grade: 'A', score: 84, color: '#ea580c' },
-            { name: 'Basic Electrical Engg.', grade: 'B+', score: 78, color: '#7c3aed' },
-            { name: 'Communication Skills', grade: 'A', score: 88, color: '#0891b2' }
-        ]},
-        2: { sgpa: 8.4, deptRank: 3, uniRank: 45, credits: 23, subjects: [
-            { name: 'Engineering Mathematics II', grade: 'A', score: 85, color: '#2563eb' },
-            { name: 'Data Structures', grade: 'A+', score: 93, color: '#16a34a' },
-            { name: 'Digital Logic Design', grade: 'A', score: 87, color: '#ea580c' },
-            { name: 'OOP with Java', grade: 'A', score: 89, color: '#7c3aed' },
-            { name: 'Environmental Science', grade: 'A', score: 90, color: '#0891b2' }
-        ]},
-        3: { sgpa: 8.5, deptRank: 2, uniRank: 30, credits: 24, subjects: [
-            { name: 'Discrete Mathematics', grade: 'A', score: 87, color: '#2563eb' },
-            { name: 'Database Management', grade: 'A+', score: 94, color: '#16a34a' },
-            { name: 'Theory of Computation', grade: 'A', score: 85, color: '#ea580c' },
-            { name: 'Operating Systems', grade: 'A', score: 88, color: '#7c3aed' },
-            { name: 'Probability & Statistics', grade: 'A', score: 86, color: '#0891b2' }
-        ]},
-        4: { sgpa: 8.6, deptRank: 2, uniRank: 27, credits: 24, subjects: [
-            { name: 'Introduction to ML', grade: 'A+', score: 95, color: '#2563eb' },
-            { name: 'Computer Networks', grade: 'A', score: 88, color: '#16a34a' },
-            { name: 'Design & Analysis of Algo', grade: 'A', score: 86, color: '#ea580c' },
-            { name: 'Python for Data Science', grade: 'A+', score: 93, color: '#7c3aed' },
-            { name: 'Software Engineering', grade: 'A', score: 84, color: '#0891b2' }
-        ]},
-        5: { sgpa: 8.9, deptRank: 1, uniRank: 12, credits: 23, subjects: [
-            { name: 'Deep Learning', grade: 'A+', score: 95, color: '#2563eb' },
-            { name: 'Natural Language Processing', grade: 'A+', score: 92, color: '#16a34a' },
-            { name: 'Computer Vision', grade: 'A+', score: 94, color: '#ea580c' },
-            { name: 'Big Data Analytics', grade: 'A', score: 89, color: '#7c3aed' },
-            { name: 'AI Ethics & Governance', grade: 'A', score: 90, color: '#0891b2' }
-        ]},
-        6: { sgpa: 6.8, deptRank: 9, uniRank: 86, credits: 22, subjects: [
-            { name: 'Machine Learning', grade: 'A+', score: 94, color: '#2563eb' },
-            { name: 'Deep Learning Lab', grade: 'A', score: 90, color: '#7c3aed' },
-            { name: 'Data Structures & Algo', grade: 'A+', score: 96, color: '#16a34a' },
-            { name: 'Theory of Computation', grade: 'F', score: 32, color: '#dc2626', failed: true },
-            { name: 'Computer Networks', grade: 'A', score: 88, color: '#0891b2' },
-            { name: 'AI Ethics & Governance', grade: 'A', score: 92, color: '#be185d' }
-        ]}
+        1: { sgpa: 0, deptRank: 0, uniRank: 0, credits: 0, subjects: [] },
+        2: { sgpa: 0, deptRank: 0, uniRank: 0, credits: 0, subjects: [] },
+        3: { sgpa: 0, deptRank: 0, uniRank: 0, credits: 0, subjects: [] },
+        4: { sgpa: 0, deptRank: 0, uniRank: 0, credits: 0, subjects: [] },
+        5: { sgpa: 0, deptRank: 0, uniRank: 0, credits: 0, subjects: [] },
+        6: { sgpa: 0, deptRank: 0, uniRank: 0, credits: 0, subjects: [] }
     };
 
     function renderSemPanel(sem) {
         const d = semData[sem];
         const panel = document.getElementById('sem-detail-panel');
         if (!panel || !d) return;
-
-        const failedSubjects = d.subjects.filter(s => s.failed);
-
-        const bars = d.subjects.map((s, i) => {
-            const h = Math.round(s.score * 1.5);
-            const failTag = s.failed ? `<span style="background:#dc2626;color:white;font-size:0.6rem;font-weight:700;padding:1px 6px;border-radius:40px;margin-bottom:2px;">FAIL</span>` : '';
-            return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;">
-                ${failTag}
-                <span style="font-size:0.72rem;font-weight:700;color:${s.color};">${s.score}%</span>
-                <div style="width:60%;max-width:34px;height:${h}px;background:linear-gradient(180deg, ${s.color}, ${s.color}cc);border-radius:6px 6px 0 0;${s.failed ? 'border:2px dashed #dc2626;' : ''}"></div>
-            </div>`;
-        }).join('');
-
-        const labels = d.subjects.map(s =>
-            `<div style="flex:1;min-width:0;text-align:center;font-size:0.66rem;color:${s.failed ? '#dc2626' : '#64748b'};font-weight:${s.failed ? '700' : '600'};padding:0 2px;line-height:1.2;">${s.name}</div>`
-        ).join('');
-
-        const rows = d.subjects.map(s => `
-            <div style="display:flex;align-items:center;justify-content:space-between;background:${s.failed ? '#fef2f2' : '#f8fafc'};border-radius:12px;padding:0.7rem 1rem;border:1px solid ${s.failed ? '#fecaca' : '#eef2f7'};">
-                <div style="display:flex;align-items:center;gap:0.7rem;">
-                    <span style="width:8px;height:8px;border-radius:50%;background:${s.color};display:inline-block;flex-shrink:0;"></span>
-                    <span style="font-size:0.82rem;color:#334155;font-weight:500;">${s.name}</span>
-                    ${s.failed ? `<span style="background:#dc2626;color:white;font-size:0.65rem;font-weight:700;padding:0.15rem 0.6rem;border-radius:40px;display:flex;align-items:center;gap:4px;"><i class="fas fa-circle-exclamation"></i> FAILED</span>` : ''}
-                </div>
-                <div style="display:flex;align-items:center;gap:0.7rem;">
-                    <span style="font-size:0.85rem;font-weight:700;color:${s.color};">${s.score}%</span>
-                    <span style="background:${s.color}1a;color:${s.color};font-size:0.7rem;font-weight:700;padding:0.15rem 0.6rem;border-radius:40px;min-width:34px;text-align:center;">${s.grade}</span>
-                </div>
-            </div>`).join('');
-
         const romans = {1:'I',2:'II',3:'III',4:'IV',5:'V',6:'VI'};
-
-        const raAlert = failedSubjects.length ? `
-            <div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1px solid #fecaca;border-radius:18px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:1rem;">
-                <div style="width:40px;height:40px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-triangle-exclamation" style="color:white;"></i></div>
-                <div style="flex:1;">
-                    <div style="font-weight:700;color:#991b1b;font-size:0.92rem;margin-bottom:3px;">Re-Examination (REE) Required — Semester ${romans[sem]}</div>
-                    <div style="font-size:0.82rem;color:#7f1d1d;margin-bottom:0.8rem;">
-                        You did not clear ${failedSubjects.map(s=>`<strong>${s.name}</strong>`).join(', ')}. Pay the REE exam fee to receive your exam date.
-                    </div>
-                    <button class="btn btn-primary" style="background:#dc2626;border:none;" onclick="navigateTo('fees'); showToast('➡️ Pay your REE fee below to unlock your exam date','info')"><i class="fas fa-credit-card"></i> Go to Fees &amp; Pay REE</button>
-                </div>
-            </div>` : '';
-
-        const debarAttAvg = (typeof getAttendanceAvg === 'function') ? getAttendanceAvg(sem) : 100;
-        const isSemDebarred = debarAttAvg < 75 && !(typeof debarPaid !== 'undefined' && debarPaid);
-        const debarAlert = isSemDebarred ? `
-            <div style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border:1px solid #fed7aa;border-radius:18px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:1rem;">
-                <div style="width:40px;height:40px;background:#ea580c;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-user-slash" style="color:white;"></i></div>
-                <div style="flex:1;">
-                    <div style="font-weight:700;color:#9a3412;font-size:0.92rem;margin-bottom:3px;">Debarred from Exams — Semester ${romans[sem]} (Attendance ${debarAttAvg}%)</div>
-                    <div style="font-size:0.82rem;color:#7c2d12;margin-bottom:0.8rem;">
-                        Your attendance is below the required 75%. You are debarred from sitting in exams for this semester until the debarment fee is cleared.
-                    </div>
-                    <button class="btn btn-primary" style="background:#ea580c;border:none;" onclick="navigateTo('fees'); showToast('➡️ Pay your Debarred fee below to become exam-eligible','info')"><i class="fas fa-credit-card"></i> Go to Fees &amp; Pay ₹500</button>
-                </div>
-            </div>` : '';
-
         panel.innerHTML = `
-            ${debarAlert}
-            ${raAlert}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.9rem;margin-bottom:1.5rem;">
-                <div style="background:white;border-radius:18px;padding:1rem 1.2rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <div style="font-size:0.68rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">SGPA</div>
-                    <div style="font-size:1.5rem;font-weight:800;color:#1e3a8a;">${d.sgpa}</div>
-                </div>
-                <div style="background:white;border-radius:18px;padding:1rem 1.2rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <div style="font-size:0.68rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Dept. Rank</div>
-                    <div style="font-size:1.5rem;font-weight:800;color:#0f172a;">${d.deptRank}</div>
-                </div>
-                <div style="background:white;border-radius:18px;padding:1rem 1.2rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <div style="font-size:0.68rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">University Rank</div>
-                    <div style="font-size:1.5rem;font-weight:800;color:#0f172a;">${d.uniRank}</div>
-                </div>
-                <div style="background:white;border-radius:18px;padding:1rem 1.2rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                    <div style="font-size:0.68rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Credits</div>
-                    <div style="font-size:1.5rem;font-weight:800;color:#0f172a;">${d.credits}</div>
-                </div>
-            </div>
-
-            <div style="background:white;border-radius:22px;padding:1.4rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:1.5rem;">
-                <div style="font-weight:700;font-size:0.95rem;color:#0f172a;margin-bottom:0.2rem;">Subject-wise Performance — Semester ${romans[sem]}</div>
-                <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:1.3rem;">Final scores across all subjects this semester</div>
-                <div style="display:flex;align-items:flex-end;gap:4px;height:160px;border-bottom:1px solid #f1f5f9;padding-bottom:2px;">
-                    ${bars}
-                </div>
-                <div style="display:flex;gap:4px;margin-top:0.6rem;">
-                    ${labels}
-                </div>
-            </div>
-
-            <div style="font-size:0.72rem;font-weight:700;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;margin-bottom:0.8rem;">Subject-wise Result Sheet</div>
-            <div style="display:flex;flex-direction:column;gap:0.6rem;">
-                ${rows}
+            <div style="text-align:center;padding:3rem 1rem;color:#94a3b8;">
+                <i class="fas fa-chart-simple" style="font-size:3rem;display:block;margin-bottom:1rem;opacity:0.3;"></i>
+                <h3 style="color:#475569;font-weight:600;">No Performance Data Available</h3>
+                <p style="font-size:0.9rem;">Your academic performance for Semester ${romans[sem]} will appear here once faculty adds marks.</p>
             </div>
         `;
     }
@@ -2723,8 +2359,6 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         const active = document.getElementById('sem-tab-' + sem);
         if (active) { active.style.background = '#1e3a8a'; active.style.color = 'white'; active.style.fontWeight = '600'; }
         renderSemPanel(sem);
-        const panel = document.getElementById('sem-detail-panel');
-        if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     // ================= GENERATE QR =================
@@ -2736,41 +2370,8 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         }
     };
 
-    // ================= ADMIN CONTROLS =================
-    addAdminBtn.addEventListener('click', function() {
-        const email = newAdminInput.value.trim();
-        if (!email || !email.includes('@')) {
-            showToast('⚠️ Enter a valid email.', 'error');
-            return;
-        }
-        if (admins.includes(email)) {
-            showToast('⚠️ Admin already exists.', 'error');
-            return;
-        }
-        admins.push(email);
-        saveAdmins();
-        renderAdmins();
-        newAdminInput.value = '';
-        showToast(`✅ Added ${email}`, 'success');
-    });
-
-    resetAdminBtn.addEventListener('click', function() {
-        admins = ['admin@soet.edu', 'hoda@soet.edu', 'dean@soet.edu'];
-        saveAdmins();
-        renderAdmins();
-        showToast('🔄 Admin list reset', 'info');
-    });
-
-    newAdminInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') addAdminBtn.click();
-    });
-
     // ================= EVENTS SYSTEM =================
-    let events = JSON.parse(localStorage.getItem('soet_events')) || [
-        { id: 1, title: 'Hackathon 2026', type: 'Hackathon', date: '2026-11-10', time: '09:00', venue: 'Main Auditorium', capacity: 200, description: 'Annual hackathon with prizes worth ₹50,000. Register now!', createdBy: 'admin@soet.edu', createdAt: Date.now(), registrations: [] },
-        { id: 2, title: 'Guest Lecture: Dr. S. N. Gupta', type: 'Guest Lecture', date: '2026-11-15', time: '14:00', venue: 'LT-1', capacity: 150, description: 'Lecture on "AI in 2026" by Dr. S. N. Gupta, IIT Delhi.', createdBy: 'admin@soet.edu', createdAt: Date.now(), registrations: [] },
-        { id: 3, title: 'Annual Sports Meet 2026', type: 'Sports Meet', date: '2026-11-20', time: '08:00', venue: 'Sports Complex', capacity: 500, description: 'Annual sports festival with multiple events. Register your team!', createdBy: 'admin@soet.edu', createdAt: Date.now(), registrations: [] }
-    ];
+    let events = JSON.parse(localStorage.getItem('soet_events')) || [];
     function saveEvents() { localStorage.setItem('soet_events', JSON.stringify(events)); }
 
     window.renderEventsPage = function() {
@@ -2802,7 +2403,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         const grid = document.getElementById('eventsGrid');
         if (!grid) return;
         if (!events.length) {
-            grid.innerHTML = `<div class="card text-center" style="grid-column:1/-1;"><p class="text-muted">No events available yet.</p></div>`;
+            grid.innerHTML = `<div class="card text-center" style="grid-column:1/-1;"><p class="text-muted">No events available yet. Admin will create events soon.</p></div>`;
             return;
         }
         const sorted = [...events].reverse();
@@ -3055,6 +2656,42 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         showToast('📋 Check alert for full registration details.', 'info');
     };
 
+    // ================= DASHBOARD ATTENDANCE WIDGET =================
+    function updateDashboardAttendanceWidget() {
+        const circleEl = document.getElementById('dashAttendanceCircle');
+        const pctEl = document.getElementById('dashAttendancePercent');
+        const statusEl = document.getElementById('dashAttendanceStatus');
+        if (!circleEl) return;
+
+        const sem = currentAttSem || 6;
+        const data = attSemData[sem];
+        if (!data) return;
+
+        const totalClasses = data.subjects.reduce((s, a) => s + (a.total || 0), 0);
+        const totalPresent = data.subjects.reduce((s, a) => s + (a.present || 0), 0);
+        const avg = totalClasses ? Math.round((totalPresent / totalClasses) * 100) : 0;
+        const color = avg >= 85 ? '#16a34a' : (avg >= 75 ? '#2563eb' : '#dc2626');
+
+        if (totalClasses === 0) {
+            circleEl.innerHTML = `<div style="width:50px;height:50px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.7rem;text-align:center;padding:4px;">No Data</div>`;
+            pctEl.textContent = '--%';
+            pctEl.style.color = '#94a3b8';
+            statusEl.textContent = '⏳ Awaiting data';
+            statusEl.style.color = '#94a3b8';
+            return;
+        }
+
+        circleEl.innerHTML = window.ringSvg(50, 6, avg, color);
+        pctEl.textContent = avg + '%';
+        pctEl.style.color = color;
+        statusEl.textContent = avg >= 75 ? '✅ Good Standing' : (avg >= 50 ? '⚠️ Below 75%' : '❌ Critical');
+        statusEl.style.color = avg >= 75 ? '#16a34a' : (avg >= 50 ? '#d97706' : '#dc2626');
+    }
+
+    function updateDashboardTodayAttendance() {
+        updateDashboardAttendanceWidget();
+    }
+
     // ================= RESTORE SESSION =================
     const savedUser = localStorage.getItem('soet_current_user');
     if (savedUser) {
@@ -3071,7 +2708,7 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
     }
 
     renderAdmins();
-    adminPanel.style.display = 'none';
+    if (adminPanel) adminPanel.style.display = 'none';
 
     // ================= INIT =================
     document.addEventListener('DOMContentLoaded', function() {
@@ -3085,10 +2722,22 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         renderStudentAssignments();
         renderFacultyAssignments();
         updateDashboardAttendanceWidget();
-        if (document.getElementById('sem-detail-panel')) renderSemPanel(1);
+        renderSemPanel(1);
+        renderAdmins();
+        renderStudentTimetable();
+        if (document.getElementById('page-timetable-manage') && currentUser && currentUser.role === 'admin') {
+            renderEditTimetable();
+        }
+        // Load students into attendance if faculty
+        if (currentUser && currentUser.role === 'faculty') {
+            loadStudentsFromUsers();
+        }
+        // Render user management if admin
+        if (currentUser && currentUser.role === 'admin') {
+            renderUserManagement();
+        }
     });
 
-    // Also run if DOM is already loaded
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
         renderEventsPage();
         renderReeFeeSection();
@@ -3100,12 +2749,23 @@ document.querySelectorAll('.taskbar-btn').forEach(btn => {
         renderStudentAssignments();
         renderFacultyAssignments();
         updateDashboardAttendanceWidget();
-        if (document.getElementById('sem-detail-panel')) renderSemPanel(1);
+        renderSemPanel(1);
+        renderAdmins();
+        renderStudentTimetable();
+        if (document.getElementById('page-timetable-manage') && currentUser && currentUser.role === 'admin') {
+            renderEditTimetable();
+        }
+        if (currentUser && currentUser.role === 'faculty') {
+            loadStudentsFromUsers();
+        }
+        if (currentUser && currentUser.role === 'admin') {
+            renderUserManagement();
+        }
     }
 
     console.log('✅ K.R. Mangalam University Portal ready!');
-    console.log('Demo accounts:');
-    console.log('  Student: student@soet.edu / password123');
-    console.log('  Faculty: faculty@soet.edu / password123');
-    console.log('  Admin: admin@soet.edu / password123');
+    console.log('📋 Default Admin: admin@soet.edu / password123');
+    console.log('📋 Students registered via signup appear in Faculty attendance and marks');
+    console.log('📋 Faculty registered via signup appear in Admin panel');
+    console.log('📋 Admin can remove any user from the system');
 })();
