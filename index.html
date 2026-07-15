@@ -7,7 +7,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="chatbot.css" />
 </head>
 <body>
 
@@ -242,6 +245,36 @@
                 <div class="copy">&copy; 2026 K.R. Mangalam University. All Rights Reserved.</div>
             </div>
         </footer>
+
+        <!-- ================= AI CHATBOT WIDGET ================= -->
+        <button id="soetChatbotBtn" aria-label="Open AI Assistant">
+            <i class="fas fa-comment-dots"></i>
+            <span class="cb-pulse"></span>
+        </button>
+
+        <div id="soetChatbotWindow">
+            <div class="cb-header">
+                <div class="cb-avatar"><i class="fas fa-robot"></i></div>
+                <div class="cb-title">
+                    <h4>SOET AI Assistant</h4>
+                    <span>Online · Ask me anything</span>
+                </div>
+                <button class="cb-close" id="cbCloseBtn" aria-label="Close chat"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cb-body" id="cbBody"></div>
+            <div class="cb-quick-replies" id="cbQuickReplies">
+                <span class="cb-chip" data-q="What courses do you offer?">Courses</span>
+                <span class="cb-chip" data-q="What is the fee structure?">Fees</span>
+                <span class="cb-chip" data-q="How do I apply for admission?">Admission</span>
+                <span class="cb-chip" data-q="Tell me about hostel facilities">Hostel</span>
+                <span class="cb-chip" data-q="What are the placement details?">Placements</span>
+                <span class="cb-chip" data-q="How do I contact the university?">Contact</span>
+            </div>
+            <div class="cb-input-row">
+                <input type="text" id="cbInput" placeholder="Type your question..." autocomplete="off" />
+                <button class="cb-send-btn" id="cbSendBtn" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
     </div>
 
     <!-- ================= RESEARCH MODAL ================= -->
@@ -364,6 +397,199 @@
         </div>
     </div>
 
+    <!-- ================= PAYMENT GATEWAY MODAL (opens on Pay Now) ================= -->
+    <div id="paymentGatewayOverlay" class="auth-overlay" style="z-index:9999;">
+        <div class="apply-container" style="max-width:820px;padding:0;overflow:hidden;border-radius:20px;">
+            <button class="close-apply" onclick="closePaymentGateway()" style="z-index:20;color:#0f172a;"><i class="fas fa-times"></i></button>
+
+            <!-- ===== Header bar (like a real gateway) ===== -->
+            <div style="background:#0f172a;color:#fff;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:36px;height:36px;border-radius:8px;background:#1e3a8a;display:flex;align-items:center;justify-content:center;font-weight:700;">SO</div>
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;">SOET PayGateway</div>
+                        <div style="font-size:0.72rem;opacity:0.7;"><i class="fas fa-lock"></i> 256-bit secured checkout</div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.72rem;opacity:0.75;">Amount Payable</div>
+                    <div style="font-size:1.3rem;font-weight:700;" id="pgAmountDisplay">₹0</div>
+                    <div style="font-size:0.68rem;opacity:0.7;max-width:220px;" id="pgPurposeDisplay">Tuition Fee</div>
+                </div>
+            </div>
+
+            <!-- ===== Body: sidebar tabs + content ===== -->
+            <div id="pgBody" style="display:flex;flex-wrap:wrap;min-height:440px;">
+                <div id="pgSidebar" style="width:190px;background:#f8fafc;border-right:1px solid #e2e8f0;flex-shrink:0;">
+                    <div class="pg-tab active" data-tab="upi" onclick="switchPgTab('upi')"><i class="fas fa-qrcode"></i> UPI</div>
+                    <div class="pg-tab" data-tab="card" onclick="switchPgTab('card')"><i class="fas fa-credit-card"></i> Cards</div>
+                    <div class="pg-tab" data-tab="netbanking" onclick="switchPgTab('netbanking')"><i class="fas fa-building-columns"></i> Netbanking</div>
+                    <div class="pg-tab" data-tab="wallet" onclick="switchPgTab('wallet')"><i class="fas fa-wallet"></i> Wallets</div>
+                </div>
+
+                <div style="flex:1;min-width:280px;padding:1.6rem;position:relative;">
+
+                    <!-- ===== UPI TAB ===== -->
+                    <div id="pgTab-upi" class="pg-tab-content">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using UPI</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">Scan the QR with any UPI app, or enter your UPI ID below</p>
+
+                        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+                            <div style="text-align:center;">
+                                <div id="upiQrCode" style="display:flex;justify-content:center;align-items:center;background:white;border:1px solid #e2e8f0;border-radius:14px;padding:0.8rem;width:180px;height:180px;"></div>
+                                <div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;">Expires in <span id="upiTimerDisplay">05:00</span></div>
+                            </div>
+                            <div style="flex:1;min-width:200px;">
+                                <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> Google Pay</span>
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> PhonePe</span>
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> Paytm</span>
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> BHIM</span>
+                                </div>
+                                <div class="auth-input-group">
+                                    <label>Or Enter UPI ID</label>
+                                    <input type="text" id="upiIdInput" placeholder="yourname@upi" />
+                                </div>
+                                <div id="upiTxnRefLine" style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.8rem;">Txn Ref: <span id="upiTxnRefDisplay">--</span></div>
+                                <button class="auth-btn" id="upiPayBtn" onclick="processGatewayPayment('upi')"><i class="fas fa-check-circle"></i> Verify &amp; Pay</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== CARD TAB ===== -->
+                    <div id="pgTab-card" class="pg-tab-content" style="display:none;">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using Card</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">Credit / Debit card accepted (Visa, Mastercard, RuPay, Amex)</p>
+
+                        <div class="card-preview-wrap">
+                            <div class="card-preview" id="cardPreview">
+                                <div class="card-face card-front">
+                                    <div class="card-face-top">
+                                        <div class="card-chip"><i class="fas fa-microchip"></i></div>
+                                        <div class="card-brand-logo" id="cardBrandLogo">CARD</div>
+                                    </div>
+                                    <div class="card-number-display" id="cardNumberDisplay">•••• •••• •••• ••••</div>
+                                    <div class="card-face-bottom">
+                                        <div>
+                                            <div class="card-mini-label">Card Holder</div>
+                                            <div class="card-mini-value" id="cardNameDisplay">YOUR NAME</div>
+                                        </div>
+                                        <div>
+                                            <div class="card-mini-label">Expires</div>
+                                            <div class="card-mini-value" id="cardExpiryDisplay">MM/YY</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-face card-back">
+                                    <div class="card-back-stripe"></div>
+                                    <div class="card-back-cvv">
+                                        <span id="cardCvvDisplay">•••</span>
+                                    </div>
+                                    <div class="card-back-note">Authorized signature — for customer verification only</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="auth-input-group">
+                            <label>Card Number</label>
+                            <div class="pg-input-icon-wrap">
+                                <i class="fas fa-credit-card pg-input-icon"></i>
+                                <input type="text" id="cardNumberInput" class="pg-input-with-icon" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric" autocomplete="cc-number" />
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.8rem;">
+                            <div class="auth-input-group" style="flex:1;">
+                                <label>Expiry (MM/YY)</label>
+                                <div class="pg-input-icon-wrap">
+                                    <i class="fas fa-calendar-days pg-input-icon"></i>
+                                    <input type="text" id="cardExpiryInput" class="pg-input-with-icon" placeholder="MM/YY" maxlength="5" inputmode="numeric" autocomplete="cc-exp" />
+                                </div>
+                            </div>
+                            <div class="auth-input-group" style="flex:1;">
+                                <label>CVV</label>
+                                <div class="pg-input-icon-wrap">
+                                    <i class="fas fa-lock pg-input-icon"></i>
+                                    <input type="password" id="cardCvvInput" class="pg-input-with-icon" placeholder="•••" maxlength="3" inputmode="numeric" autocomplete="cc-csc" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Name on Card</label>
+                            <div class="pg-input-icon-wrap">
+                                <i class="fas fa-user pg-input-icon"></i>
+                                <input type="text" id="cardNameInput" class="pg-input-with-icon" placeholder="As printed on card" autocomplete="cc-name" />
+                            </div>
+                        </div>
+
+                        <label class="pg-save-card-row">
+                            <input type="checkbox" id="cardSaveCheckbox" />
+                            <span>Save this card securely for faster checkout next time</span>
+                        </label>
+
+                        <button class="auth-btn" id="cardPayBtn" onclick="processGatewayPayment('card')"><i class="fas fa-lock"></i> Pay Securely</button>
+
+                        <div class="pg-secure-footer">
+                            <i class="fas fa-shield-halved"></i> Your card details are encrypted end-to-end and never stored on our servers
+                        </div>
+                    </div>
+
+                    <!-- ===== NETBANKING TAB ===== -->
+                    <div id="pgTab-netbanking" class="pg-tab-content" style="display:none;">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using Netbanking</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">You'll be redirected to your bank's login page</p>
+                        <div class="auth-input-group">
+                            <label>Select Bank</label>
+                            <select id="netbankingSelect">
+                                <option value="">Select your bank</option>
+                                <option>State Bank of India</option>
+                                <option>HDFC Bank</option>
+                                <option>ICICI Bank</option>
+                                <option>Axis Bank</option>
+                                <option>Kotak Mahindra Bank</option>
+                                <option>Punjab National Bank</option>
+                                <option>Other Bank</option>
+                            </select>
+                        </div>
+                        <button class="auth-btn" id="netbankingPayBtn" onclick="processGatewayPayment('netbanking')"><i class="fas fa-arrow-right-to-bracket"></i> Proceed to Bank</button>
+                    </div>
+
+                    <!-- ===== WALLET TAB ===== -->
+                    <div id="pgTab-wallet" class="pg-tab-content" style="display:none;">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using Wallet</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">Select a wallet to continue</p>
+                        <div class="auth-input-group">
+                            <label>Select Wallet</label>
+                            <select id="walletSelect">
+                                <option value="">Select wallet</option>
+                                <option>Paytm Wallet</option>
+                                <option>Amazon Pay</option>
+                                <option>Mobikwik</option>
+                                <option>FreeCharge</option>
+                            </select>
+                        </div>
+                        <button class="auth-btn" id="walletPayBtn" onclick="processGatewayPayment('wallet')"><i class="fas fa-wallet"></i> Pay with Wallet</button>
+                    </div>
+
+                    <!-- ===== PROCESSING / SUCCESS OVERLAY (inside content panel) ===== -->
+                    <div id="pgProcessingOverlay" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.97);border-radius:0 0 20px 0;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:1.5rem;">
+                        <div id="pgProcessingSpinner">
+                            <i class="fas fa-circle-notch fa-spin" style="font-size:2.4rem;color:#1e3a8a;"></i>
+                            <p style="margin-top:1rem;font-weight:600;color:#0f172a;" id="pgProcessingText">Connecting to bank...</p>
+                            <p class="text-muted" style="font-size:0.78rem;">Please do not close or refresh this window</p>
+                        </div>
+                        <div id="pgSuccessBlock" style="display:none;">
+                            <i class="fas fa-circle-check" style="font-size:2.8rem;color:#16a34a;"></i>
+                            <p style="margin-top:1rem;font-weight:700;color:#0f172a;font-size:1.05rem;">Payment Successful!</p>
+                            <p class="text-muted" style="font-size:0.82rem;margin-top:2px;" id="pgSuccessAmount">₹0 paid</p>
+                            <p class="text-muted" style="font-size:0.75rem;margin-top:6px;">Ref ID: <span id="pgSuccessTxnId">--</span></p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ================= DASHBOARD ================= -->
     <div id="dashboard" class="dashboard">
         <div class="taskbar">
@@ -386,6 +612,7 @@
                 <button class="taskbar-btn student-only" data-page="calendar"><i class="fas fa-calendar-alt"></i> Calendar<span class="popup-circle">📅 Dates</span></button>
                 <button class="taskbar-btn student-only" data-page="performance"><i class="fas fa-chart-bar"></i> Performance<span class="popup-circle">📈 Tests</span></button>
                 <button class="taskbar-btn student-only" data-page="my-attendance"><i class="fas fa-clipboard-list"></i> Attendance<span class="popup-circle">📋 My %</span></button>
+                <button class="taskbar-btn student-only" data-page="qr-scan"><i class="fas fa-qrcode"></i> Scan QR<span class="popup-circle">📷 Mark Attendance</span></button>
                 <button class="taskbar-btn student-only" data-page="timetable"><i class="fas fa-calendar-alt"></i> Timetable<span class="popup-circle">📅 View</span></button>
                 
                 <!-- Faculty & Admin -->
@@ -393,7 +620,6 @@
                 <button class="taskbar-btn faculty-only" data-page="attendance"><i class="fas fa-clipboard-check"></i> Attendance<span class="popup-circle">📋 Mark</span></button>
                 <button class="taskbar-btn faculty-only" data-page="assignment-upload"><i class="fas fa-file-arrow-up"></i> Assignments<span class="popup-circle">📤 Upload</span></button>
                 <button class="taskbar-btn faculty-only" data-page="syllabus"><i class="fas fa-book"></i> Syllabus<span class="popup-circle">📚 Track</span></button>
-                <button class="taskbar-btn faculty-only" data-page="qr"><i class="fas fa-qrcode"></i> QR<span class="popup-circle">📱 Generate</span></button>
                 
                 <!-- Admin Only -->
                 <button class="taskbar-btn admin-only" data-page="events-manage"><i class="fas fa-calendar-plus"></i> Manage Events<span class="popup-circle">🎪 Admin</span></button>
@@ -468,18 +694,6 @@
                     <div class="card" id="criticalAlertsCard">
                         <div class="card-header"><h3><i class="fas fa-exclamation-triangle"></i> Critical Alerts</h3><span class="badge-soft">0</span></div>
                         <p class="text-muted" style="text-align:center;padding:0.5rem 0;">No critical alerts.</p>
-                    </div>
-
-                    <div class="card" id="qrCard">
-                        <div class="card-header"><h3><i class="fas fa-qrcode"></i> Generate QR Session</h3><span class="badge-success">● active</span></div>
-                        <div class="flex gap-1" style="flex-wrap:wrap;">
-                            <i class="fas fa-qrcode" style="font-size:2rem;color:#1e3a8a;"></i>
-                            <span style="font-weight:500;">CS402 · 11:30 AM</span>
-                            <button class="btn btn-primary" onclick="generateQR()" style="margin-left:auto;"><i class="fas fa-sync-alt"></i> Generate</button>
-                        </div>
-                        <div class="student-grid">
-                            <p class="text-muted" style="grid-column:1/-1;text-align:center;padding:0.5rem 0;">No students added yet.</p>
-                        </div>
                     </div>
                 </div>
 
@@ -609,6 +823,64 @@
                     </div>
                 </div>
             </div>
+
+            <!-- ===== FEE STRUCTURE & BREAKDOWN ===== -->
+            <div class="card mt-2">
+                <div class="card-header">
+                    <h3><i class="fas fa-layer-group"></i> Fee Structure &amp; Breakdown</h3>
+                    <span class="badge-soft" id="feeHeadCount">0 heads</span>
+                </div>
+
+                <div class="fee-category-tiles" id="feeCategoryTiles">
+                    <div class="fee-cat-tile active" data-cat="all" onclick="selectFeeCategory('all')">
+                        <i class="fas fa-layer-group"></i><span>All Fees</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="academic" onclick="selectFeeCategory('academic')">
+                        <i class="fas fa-graduation-cap"></i><span>Academic</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="hostel" onclick="selectFeeCategory('hostel')">
+                        <i class="fas fa-hotel"></i><span>Hostel</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="transport" onclick="selectFeeCategory('transport')">
+                        <i class="fas fa-bus"></i><span>Transport</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="misc" onclick="selectFeeCategory('misc')">
+                        <i class="fas fa-receipt"></i><span>Miscellaneous</span>
+                    </div>
+                </div>
+
+                <div class="fee-summary-strip" id="feeSummaryStrip"></div>
+
+                <div class="table-container" style="margin-top:1rem;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:36px;"><input type="checkbox" id="feeSelectAllCheckbox" onchange="toggleSelectAllFeeHeads(this.checked)" /></th>
+                                <th>#</th><th>Session</th><th>Category</th><th>Head Name</th><th style="text-align:right;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feeHeadsTableBody">
+                            <tr><td colspan="6" class="text-muted">Loading fee structure...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="fee-select-bar" id="feeSelectBar">
+                    <div>
+                        <div class="text-muted" style="font-size:0.75rem;">You want to pay</div>
+                        <div id="feeSelectedAmount" style="font-size:1.3rem;font-weight:700;color:#1e3a8a;">₹0</div>
+                        <div class="text-muted" id="feeSelectedCount" style="font-size:0.72rem;">No fee heads selected</div>
+                    </div>
+                    <button class="btn btn-primary" id="paySelectedFeesBtn" onclick="paySelectedFeeHeads()" disabled style="opacity:0.5;cursor:default;">
+                        <i class="fas fa-credit-card"></i> Pay Selected Amount
+                    </button>
+                </div>
+
+                <p class="text-muted" style="font-size:0.75rem;margin-top:0.8rem;">
+                    <i class="fas fa-circle-info"></i> Tick the fee heads you want to pay, or use "Pay Now" above to pay your full outstanding due. For discrepancies, please contact the accounts office.
+                </p>
+            </div>
+
             <div id="ree-fee-section" style="margin-top:1.5rem;"></div>
             <div id="debar-fee-section" style="margin-top:1.5rem;"></div>
         </div>
@@ -667,6 +939,50 @@
                     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#16a34a;"></span> Present</div>
                     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#dc2626;"></span> Absent</div>
                     <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#e2e8f0;"></span> Weekend / Holiday</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE: SCAN QR (STUDENT ATTENDANCE) -->
+        <div id="page-qr-scan" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-qrcode"></i> Scan QR for Attendance</h2><p>Scan the QR code shared by your faculty to mark today's attendance</p></div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="qr-scan-box">
+                        <div class="qr-scan-video-wrap" id="qrScanVideoWrap" style="display:none;">
+                            <video id="qrScanVideo" playsinline autoplay muted></video>
+                            <div class="qr-scan-frame"></div>
+                        </div>
+                        <div class="qr-scan-placeholder" id="qrScanPlaceholder">
+                            <i class="fas fa-qrcode"></i>
+                            <p class="text-muted">Tap "Start Scanning" and point your camera at the QR code shown by your faculty.</p>
+                        </div>
+                        <canvas id="qrScanCanvas" style="display:none;"></canvas>
+                        <div id="qrScanStatus" class="qr-scan-status"></div>
+                        <div class="flex mt-2" style="justify-content:center;flex-wrap:wrap;gap:0.6rem;">
+                            <button class="btn btn-primary" id="qrScanStartBtn" onclick="startQrScan()"><i class="fas fa-camera"></i> Start Scanning</button>
+                            <button class="btn btn-outline" id="qrScanStopBtn" onclick="stopQrScan()" style="display:none;"><i class="fas fa-stop"></i> Stop</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="card">
+                        <h3><i class="fas fa-keyboard"></i> Enter Code Manually</h3>
+                        <p class="text-muted" style="font-size:0.82rem;margin-bottom:0.8rem;">No camera access? Ask your faculty for the session code and enter it below.</p>
+                        <div class="auth-input-group">
+                            <label>Session Code</label>
+                            <input type="text" id="qrManualCode" class="input-slim" style="width:100%;" placeholder="e.g. SOET-XXXXXX">
+                        </div>
+                        <button class="btn btn-primary" id="qrManualSubmitBtn" onclick="submitManualQrCode()" style="width:100%;justify-content:center;"><i class="fas fa-check"></i> Mark Attendance</button>
+                    </div>
+                    <div class="card mt-2">
+                        <h3><i class="fas fa-circle-info"></i> How it works</h3>
+                        <ul style="list-style:disc;padding-left:1.3rem;color:#475569;line-height:1.9;font-size:0.85rem;">
+                            <li>Your faculty generates a QR session for the class.</li>
+                            <li>Scan it (or enter the code manually) within the session's validity window.</li>
+                            <li>Your attendance is marked instantly and reflects in "My Attendance" and on your faculty's dashboard.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -933,6 +1249,33 @@
                     <span class="badge-soft" style="margin-left:auto;">Present: <span id="presentCount">0</span>/<span id="presentTotal">0</span></span>
                 </div>
             </div>
+
+            <div class="card mt-2">
+                <div class="card-header"><h3><i class="fas fa-qrcode"></i> Generate QR Session</h3><span class="badge-soft" id="facQrStatusBadge">● Inactive</span></div>
+                <div class="grid-2">
+                    <div class="qr-display">
+                        <div class="qr-code" id="facQrCodeContainer"><i class="fas fa-qrcode"></i></div>
+                        <h3 id="facQrSubjectLabel">No active session</h3>
+                        <p style="color:#475569;" id="facQrTimeLabel">Click "Generate" to start a QR session</p>
+                        <div class="flex mt-2" style="justify-content:center;">
+                            <button class="btn btn-primary" onclick="generateQR()"><i class="fas fa-sync-alt"></i> Generate</button>
+                            <button class="btn btn-outline" id="facQrDownloadBtn" onclick="downloadFacQr()"><i class="fas fa-download"></i> Download</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Session Students <span class="badge-soft" id="facQrScannedCount">0</span></h3>
+                        <div class="student-grid" style="grid-template-columns: repeat(3,1fr);" id="facQrSessionStudents">
+                            <p class="text-muted" style="grid-column:1/-1;text-align:center;padding:0.5rem 0;">No students in this session yet.</p>
+                        </div>
+                        <div class="flex mt-2"><button class="btn btn-outline"><i class="fas fa-user-plus"></i> Add Student</button><button class="btn btn-outline"><i class="fas fa-user-minus"></i> Remove</button></div>
+                    </div>
+                </div>
+                <div class="card mt-2"><h3>Session History</h3>
+                    <div class="progress-item"><span>CS402 · 11:30 AM</span><span class="badge-soft">0 present</span></div>
+                    <div class="progress-item"><span>CS310 · 02:00 PM</span><span class="badge-soft">0 present</span></div>
+                    <div class="progress-item"><span>CS201 · 09:00 AM</span><span class="badge-soft">0 present</span></div>
+                </div>
+            </div>
         </div>
 
         <div id="page-marks-entry" class="page-content">
@@ -1152,37 +1495,6 @@
             </div>
         </div>
 
-        <div id="page-qr" class="page-content">
-            <div class="page-header"><h2><i class="fas fa-qrcode"></i> Generate QR Session</h2><p>Create QR codes for attendance</p></div>
-            <div class="grid-2">
-                <div class="card">
-                    <div class="qr-display">
-                        <div class="qr-code"><i class="fas fa-qrcode"></i></div>
-                        <h3>CS402 · Distributed Systems</h3>
-                        <p style="color:#475569;">11:30 AM - 01:00 PM</p>
-                        <span class="badge-success">● Active</span>
-                        <div class="flex mt-2" style="justify-content:center;">
-                            <button class="btn btn-primary" onclick="generateQR()"><i class="fas fa-sync-alt"></i> Generate New</button>
-                            <button class="btn btn-outline"><i class="fas fa-download"></i> Download</button>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <div class="card"><h3>Session Students</h3>
-                        <div class="student-grid" style="grid-template-columns: repeat(3,1fr);">
-                            <p class="text-muted" style="grid-column:1/-1;text-align:center;padding:0.5rem 0;">No students in this session yet.</p>
-                        </div>
-                        <div class="flex mt-2"><button class="btn btn-outline"><i class="fas fa-user-plus"></i> Add Student</button><button class="btn btn-outline"><i class="fas fa-user-minus"></i> Remove</button></div>
-                    </div>
-                    <div class="card mt-2"><h3>Session History</h3>
-                        <div class="progress-item"><span>CS402 · 11:30 AM</span><span class="badge-soft">0 present</span></div>
-                        <div class="progress-item"><span>CS310 · 02:00 PM</span><span class="badge-soft">0 present</span></div>
-                        <div class="progress-item"><span>CS201 · 09:00 AM</span><span class="badge-soft">0 present</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div id="page-assignment-upload" class="page-content">
             <div class="page-header"><h2><i class="fas fa-file-arrow-up"></i> Assignments</h2><p>Upload assignments for students with a submission deadline</p></div>
             <div class="grid-2">
@@ -1238,7 +1550,11 @@
         <div id="page-profile" class="page-content">
             <div class="page-header"><h2><i class="fas fa-user-gear"></i> Profile &amp; Settings</h2><p>Manage your account and preferences</p></div>
             <div class="profile-header-card">
-                <div class="profile-avatar-big" id="profileAvatarInitial">U</div>
+                <div class="profile-avatar-wrap">
+                    <div class="profile-avatar-big" id="profileAvatarInitial">U</div>
+                    <label class="profile-avatar-edit-btn" for="profilePhotoInput" title="Change Photo"><i class="fas fa-camera"></i></label>
+                    <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;">
+                </div>
                 <div>
                     <h2 id="profileNameDisplay" style="font-size:1.4rem;">User Name</h2>
                     <p id="profileEmailDisplay" style="opacity:0.85;font-size:0.9rem;">user@soet.edu</p>
@@ -1257,7 +1573,10 @@
                         <label>New Password (leave blank to keep current)</label>
                         <input type="password" id="profilePasswordInput" class="input-slim" style="width:100%;" placeholder="••••••••">
                     </div>
-                    <button class="btn btn-primary" id="profileSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
+                    <div class="flex" style="gap:0.6rem;">
+                        <button class="btn btn-primary" id="profileSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
+                        <button class="btn btn-outline" id="profileRemovePhotoBtn" type="button"><i class="fas fa-user-slash"></i> Remove Photo</button>
+                    </div>
                 </div>
                 <div class="card">
                     <h3 style="margin-bottom:0.5rem;"><i class="fas fa-sliders"></i> Preferences</h3>
@@ -1330,5 +1649,6 @@
     </div>
 
     <script src="script.js"></script>
+    <script src="chatbot.js"></script>
 </body>
 </html>
