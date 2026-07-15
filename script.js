@@ -620,9 +620,12 @@
                         ${students.length === 0 ? '<p class="text-muted">No students registered yet.</p>' : 
                         students.map(s => `
                             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f1f5f9;">
-                                <div>
-                                    <strong>${s.name}</strong>
-                                    <div style="font-size:0.75rem;color:#64748b;">${s.email} | Roll: ${s.rollNo || 'N/A'}</div>
+                                <div class="admin-user-row">
+                                    ${s.photo ? `<img class="admin-user-avatar" src="${s.photo}" alt="${s.name}">` : `<div class="admin-user-avatar-initial">${(s.name||s.email||'S').trim().charAt(0).toUpperCase()}</div>`}
+                                    <div>
+                                        <strong>${s.name}</strong>
+                                        <div style="font-size:0.75rem;color:#64748b;">${s.email} | Roll: ${s.rollNo || 'N/A'}</div>
+                                    </div>
                                 </div>
                                 <button class="btn btn-danger" onclick="removeUser('${s.email}')" style="font-size:0.65rem;padding:0.2rem 0.6rem;">
                                     <i class="fas fa-trash"></i>
@@ -640,9 +643,12 @@
                         ${faculty.length === 0 ? '<p class="text-muted">No faculty registered yet.</p>' : 
                         faculty.map(f => `
                             <div style="display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f1f5f9;">
-                                <div>
-                                    <strong>${f.name}</strong>
-                                    <div style="font-size:0.75rem;color:#64748b;">${f.email}</div>
+                                <div class="admin-user-row">
+                                    ${f.photo ? `<img class="admin-user-avatar" src="${f.photo}" alt="${f.name}">` : `<div class="admin-user-avatar-initial">${(f.name||f.email||'F').trim().charAt(0).toUpperCase()}</div>`}
+                                    <div>
+                                        <strong>${f.name}</strong>
+                                        <div style="font-size:0.75rem;color:#64748b;">${f.email}</div>
+                                    </div>
                                 </div>
                                 <button class="btn btn-danger" onclick="removeUser('${f.email}')" style="font-size:0.65rem;padding:0.2rem 0.6rem;">
                                     <i class="fas fa-trash"></i>
@@ -885,6 +891,7 @@
 
         dashUserName.textContent = user.name || user.email.split('@')[0];
         dashRoleTag.textContent = user.role.toUpperCase();
+        if (typeof updateHeaderAvatar === 'function') updateHeaderAvatar();
 
         const isStudent = user.role === 'student';
         const isFaculty = user.role === 'faculty';
@@ -914,9 +921,6 @@
             }
         });
 
-        const qrCard = document.getElementById('qrCard');
-        if (qrCard) qrCard.style.display = (isFaculty || isAdmin) ? 'block' : 'none';
-        
         const alertsCard = document.getElementById('criticalAlertsCard');
         if (alertsCard) alertsCard.style.display = (isFaculty || isAdmin) ? 'block' : 'none';
 
@@ -1012,7 +1016,7 @@
             'attendance': 'attendance',
             'assignment-upload': 'assignment-upload',
             'syllabus': 'syllabus',
-            'qr': 'qr',
+            'qr-scan': 'qr-scan',
             'events-manage': 'events',
             'timetable-manage': 'timetable-manage',
             'admin-panel': 'admin-panel',
@@ -1029,7 +1033,7 @@
             }
         }
 
-        const facultyOnlyPages = ['marks-entry', 'attendance', 'assignment-upload', 'syllabus', 'qr'];
+        const facultyOnlyPages = ['marks-entry', 'attendance', 'assignment-upload', 'syllabus'];
         if (facultyOnlyPages.includes(page)) {
             if (!currentUser || (currentUser.role !== 'faculty' && currentUser.role !== 'admin')) {
                 showToast('⛔ Access denied. Faculty only.', 'error');
@@ -1039,7 +1043,7 @@
 
         const studentOnlyPages = ['placements', 'assignments', 'materials', 'fees', 'results', 
                                   'certificates', 'helpdesk', 'hostel', 'transport', 'calendar', 
-                                  'performance', 'my-attendance', 'timetable', 'events'];
+                                  'performance', 'my-attendance', 'timetable', 'events', 'qr-scan'];
         if (studentOnlyPages.includes(page)) {
             if (!currentUser || currentUser.role !== 'student') {
                 showToast('⛔ Access denied. Student only.', 'error');
@@ -1071,7 +1075,10 @@
         if (page === 'attendance') { 
             renderFacAttendanceStats(); 
             renderFacStudentChips(); 
+            resetFacQrDisplay();
         }
+        if (page !== 'qr-scan' && typeof stopQrScan === 'function') stopQrScan();
+        if (page !== 'attendance' && typeof stopFacQrPolling === 'function') stopFacQrPolling();
         if (page === 'marks-entry') renderMarksEntries();
         if (page === 'fees') { renderDebarFeeSection(); renderFeeOverview(); }
         if (page === 'performance') renderStudentMarksUpdates();
@@ -1342,13 +1349,108 @@
         const emailDisplay = document.getElementById('profileEmailDisplay');
         const rollDisplay = document.getElementById('profileRollDisplay');
         const roleTag = document.getElementById('profileRoleTag');
-        if (initialEl) initialEl.textContent = initial;
+        if (initialEl) {
+            if (currentUser.photo) {
+                initialEl.innerHTML = '<img src="' + currentUser.photo + '" alt="Profile Photo">';
+            } else {
+                initialEl.textContent = initial;
+            }
+        }
         if (nameDisplay) nameDisplay.textContent = currentUser.name || currentUser.email.split('@')[0];
         if (emailDisplay) emailDisplay.textContent = currentUser.email;
         if (rollDisplay) rollDisplay.textContent = currentUser.rollNo ? ('Roll No: ' + currentUser.rollNo) : '';
         if (roleTag) roleTag.textContent = currentUser.role.toUpperCase();
         if (profileNameInput) profileNameInput.value = currentUser.name || '';
         if (profilePasswordInput) profilePasswordInput.value = '';
+        updateHeaderAvatar();
+    }
+
+    // ================= PROFILE PHOTO UPLOAD =================
+    const profilePhotoInput = document.getElementById('profilePhotoInput');
+    const profileRemovePhotoBtn = document.getElementById('profileRemovePhotoBtn');
+
+    function resizeImageToDataUrl(file, maxSize, callback) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > maxSize) { h = Math.round(h * (maxSize / w)); w = maxSize; } }
+                else { if (h > maxSize) { w = Math.round(w * (maxSize / h)); h = maxSize; } }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                callback(canvas.toDataURL('image/jpeg', 0.85));
+            };
+            img.onerror = function() { showToast('⚠️ Could not read that image file.', 'error'); };
+            img.src = e.target.result;
+        };
+        reader.onerror = function() { showToast('⚠️ Could not read that image file.', 'error'); };
+        reader.readAsDataURL(file);
+    }
+
+    function updateHeaderAvatar() {
+        const badge = document.querySelector('.user-badge');
+        if (!badge || !currentUser) return;
+        let iconEl = badge.querySelector('.fa-user-circle, .header-avatar-img');
+        if (!iconEl) return;
+        if (currentUser.photo) {
+            const img = document.createElement('img');
+            img.className = 'header-avatar-img';
+            img.src = currentUser.photo;
+            img.alt = 'Avatar';
+            img.style.cssText = 'width:26px;height:26px;border-radius:50%;object-fit:cover;';
+            iconEl.replaceWith(img);
+        } else if (iconEl.tagName === 'IMG') {
+            const icon = document.createElement('i');
+            icon.className = 'fas fa-user-circle';
+            iconEl.replaceWith(icon);
+        }
+    }
+
+    if (profilePhotoInput) {
+        profilePhotoInput.addEventListener('change', function() {
+            const file = this.files && this.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('⚠️ Please select a valid image file.', 'error');
+                return;
+            }
+            if (file.size > 8 * 1024 * 1024) {
+                showToast('⚠️ Image too large. Please choose a file under 8MB.', 'error');
+                return;
+            }
+            resizeImageToDataUrl(file, 300, function(dataUrl) {
+                if (!currentUser) return;
+                const idx = users.findIndex(u => u.email === currentUser.email);
+                if (idx > -1) {
+                    users[idx].photo = dataUrl;
+                    currentUser = users[idx];
+                    saveUsers();
+                    renderProfilePage();
+                    renderUserManagement();
+                    showToast('✅ Profile photo updated!', 'success');
+                }
+            });
+            profilePhotoInput.value = '';
+        });
+    }
+
+    if (profileRemovePhotoBtn) {
+        profileRemovePhotoBtn.addEventListener('click', function() {
+            if (!currentUser) return;
+            if (!currentUser.photo) { showToast('ℹ️ No photo to remove.', 'info'); return; }
+            const idx = users.findIndex(u => u.email === currentUser.email);
+            if (idx > -1) {
+                delete users[idx].photo;
+                currentUser = users[idx];
+                saveUsers();
+                renderProfilePage();
+                renderUserManagement();
+                showToast('🗑️ Profile photo removed.', 'info');
+            }
+        });
     }
 
     if (profileSaveBtn) {
@@ -2290,34 +2392,220 @@
                 </div>`).join('');
             histEl.innerHTML = myRows || defaultRows;
         }
+
+        renderFeeBreakdown();
     };
 
-    window.openFeePaymentModal = function() {
+    // ================= PAYMENT GATEWAY (opens on "Pay Now") =================
+    const UPI_MERCHANT_VPA = 'soetuniversity@okhdfcbank';
+    const UPI_MERCHANT_NAME = 'SOET University';
+    let pgCurrentAmount = 0;
+    let pgCurrentTxnRef = null;
+    let pgTimerInterval = null;
+    let pgSettled = false;
+    let pgCurrentPurpose = 'Tuition Fee';
+
+    function buildUpiLink(amount, txnRef) {
+        // Standard UPI deep link format understood by GPay, PhonePe, Paytm, BHIM and every real UPI app
+        const params = new URLSearchParams({
+            pa: UPI_MERCHANT_VPA,
+            pn: UPI_MERCHANT_NAME,
+            am: amount.toFixed(2),
+            cu: 'INR',
+            tn: 'Tuition Fee Payment',
+            tr: txnRef
+        });
+        return 'upi://pay?' + params.toString();
+    }
+
+    function renderUpiQr(link) {
+        const container = document.getElementById('upiQrCode');
+        if (!container) return;
+        container.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(container, {
+                text: link,
+                width: 160,
+                height: 160,
+                colorDark: '#0f172a',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            const img = document.createElement('img');
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(link);
+            img.width = 160;
+            img.height = 160;
+            container.appendChild(img);
+        }
+    }
+
+    window.switchPgTab = function(tab) {
+        document.querySelectorAll('.pg-tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+        document.querySelectorAll('.pg-tab-content').forEach(el => {
+            el.style.display = (el.id === 'pgTab-' + tab) ? 'block' : 'none';
+        });
+    };
+
+    window.openFeePaymentModal = function(customAmount, purposeLabel) {
         const due = getTuitionDue();
         if (due <= 0) {
             showToast('✅ No dues pending!', 'success');
             return;
         }
-        showToast('💳 Payment processing...', 'info');
+
+        let amount = (typeof customAmount === 'number' && customAmount > 0) ? customAmount : Math.min(due, 25000);
+        // Never allow charging more than what's actually outstanding
+        if (amount > due) amount = due;
+        pgCurrentPurpose = purposeLabel || 'Tuition Fee';
+
+        const txnRef = generateTxnId();
+        pgCurrentAmount = amount;
+        pgCurrentTxnRef = txnRef;
+        pgSettled = false;
+
+        document.getElementById('pgAmountDisplay').textContent = formatINR(amount);
+        const purposeDisp = document.getElementById('pgPurposeDisplay');
+        if (purposeDisp) purposeDisp.textContent = pgCurrentPurpose;
+        document.getElementById('upiTxnRefDisplay').textContent = txnRef;
+
+        // reset all input fields for a fresh checkout
+        ['upiIdInput', 'cardNumberInput', 'cardExpiryInput', 'cardCvvInput', 'cardNameInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        const nbSel = document.getElementById('netbankingSelect'); if (nbSel) nbSel.value = '';
+        const wSel = document.getElementById('walletSelect'); if (wSel) wSel.value = '';
+        resetCardPreview();
+
+        document.getElementById('pgProcessingOverlay').style.display = 'none';
+        document.getElementById('pgProcessingSpinner').style.display = 'block';
+        document.getElementById('pgSuccessBlock').style.display = 'none';
+
+        switchPgTab('upi');
+        renderUpiQr(buildUpiLink(amount, txnRef));
+
+        const overlay = document.getElementById('paymentGatewayOverlay');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        // Real-time style 5 minute QR validity countdown, like a live payment gateway
+        if (pgTimerInterval) clearInterval(pgTimerInterval);
+        let secondsLeft = 5 * 60;
+        const timerDisplay = document.getElementById('upiTimerDisplay');
+        pgTimerInterval = setInterval(() => {
+            secondsLeft--;
+            if (timerDisplay) {
+                const m = Math.floor(secondsLeft / 60).toString().padStart(2, '0');
+                const s = (secondsLeft % 60).toString().padStart(2, '0');
+                timerDisplay.textContent = `${m}:${s}`;
+            }
+            if (secondsLeft <= 0) {
+                clearInterval(pgTimerInterval);
+                if (!pgSettled) renderUpiQr(buildUpiLink(amount, txnRef));
+                secondsLeft = 5 * 60;
+            }
+        }, 1000);
+    };
+
+    window.closePaymentGateway = function() {
+        const overlay = document.getElementById('paymentGatewayOverlay');
+        if (overlay) overlay.classList.remove('active');
+        document.body.style.overflow = '';
+        if (pgTimerInterval) { clearInterval(pgTimerInterval); pgTimerInterval = null; }
+    };
+
+    window.processGatewayPayment = function(method) {
+        if (pgSettled) return;
+
+        // Light validation per method, like a real checkout would do
+        if (method === 'upi') {
+            const upiId = document.getElementById('upiIdInput').value.trim();
+            if (upiId && !upiId.includes('@')) {
+                showToast('⚠️ Enter a valid UPI ID or scan the QR code.', 'error');
+                return;
+            }
+        } else if (method === 'card') {
+            const num = document.getElementById('cardNumberInput').value.replace(/\s/g, '');
+            const exp = document.getElementById('cardExpiryInput').value.trim();
+            const cvv = document.getElementById('cardCvvInput').value.trim();
+            const name = document.getElementById('cardNameInput').value.trim();
+            if (num.length < 12 || !exp || cvv.length < 3 || !name) {
+                showToast('⚠️ Please fill all card details correctly.', 'error');
+                return;
+            }
+        } else if (method === 'netbanking') {
+            if (!document.getElementById('netbankingSelect').value) {
+                showToast('⚠️ Please select your bank.', 'error');
+                return;
+            }
+        } else if (method === 'wallet') {
+            if (!document.getElementById('walletSelect').value) {
+                showToast('⚠️ Please select a wallet.', 'error');
+                return;
+            }
+        }
+
+        const stepLabels = {
+            upi: ['Waiting for UPI confirmation...', 'Verifying with bank...'],
+            card: ['Connecting to bank...', 'Authenticating card (3D Secure)...'],
+            netbanking: ['Redirecting to bank portal...', 'Awaiting login confirmation...'],
+            wallet: ['Connecting to wallet...', 'Confirming balance & debit...']
+        };
+        const steps = stepLabels[method] || ['Processing payment...'];
+
+        const processingOverlay = document.getElementById('pgProcessingOverlay');
+        const processingSpinner = document.getElementById('pgProcessingSpinner');
+        const successBlock = document.getElementById('pgSuccessBlock');
+        const processingText = document.getElementById('pgProcessingText');
+
+        processingSpinner.style.display = 'block';
+        successBlock.style.display = 'none';
+        processingOverlay.style.display = 'flex';
+
+        let stepIndex = 0;
+        processingText.textContent = steps[stepIndex];
+        const stepInterval = setInterval(() => {
+            stepIndex++;
+            if (stepIndex < steps.length) {
+                processingText.textContent = steps[stepIndex];
+            }
+        }, 1100);
+
         setTimeout(() => {
-            const amount = Math.min(due, 25000);
+            clearInterval(stepInterval);
+            pgSettled = true;
+            if (pgTimerInterval) { clearInterval(pgTimerInterval); pgTimerInterval = null; }
+
+            const amount = pgCurrentAmount;
+            const txnRef = pgCurrentTxnRef;
             reduceTuitionDue(amount);
-            const txnId = generateTxnId();
+
+            const methodLabel = { upi: 'UPI', card: 'Card', netbanking: 'Netbanking', wallet: 'Wallet' }[method] || 'Online';
             feePayments.push({
-                txnId,
+                txnId: txnRef,
                 studentEmail: feeStudentKey(),
-                studentName: currentUser.name || 'Student',
-                rollNo: currentUser.rollNo || 'N/A',
+                studentName: (currentUser && currentUser.name) || 'Student',
+                rollNo: (currentUser && currentUser.rollNo) || 'N/A',
                 amount: amount,
-                method: 'Card',
-                purpose: 'Tuition Fee',
+                method: methodLabel,
+                purpose: pgCurrentPurpose,
                 status: 'Success',
                 paidAt: Date.now()
             });
             saveFeePayments();
+            selectedFeeHeadIds.clear();
             renderFeeOverview();
+
+            processingSpinner.style.display = 'none';
+            document.getElementById('pgSuccessAmount').textContent = formatINR(amount) + ' paid via ' + methodLabel;
+            document.getElementById('pgSuccessTxnId').textContent = txnRef;
+            successBlock.style.display = 'block';
+
             showToast(`✅ Payment of ${formatINR(amount)} successful!`, 'success');
-        }, 1500);
+
+            setTimeout(() => { closePaymentGateway(); }, 1800);
+        }, 2200 + steps.length * 300);
     };
 
     window.downloadFeeReceipt = function(txnId) {
@@ -2325,6 +2613,212 @@
         if (!p) { showToast('⚠️ Receipt not found.', 'error'); return; }
         showToast('📄 Receipt downloaded!', 'success');
     };
+
+    // ================= FEE STRUCTURE & BREAKDOWN (added) =================
+    const FEE_HEADS = [
+        { id: 'fh1', session: '2025-2026', category: 'academic', label: 'Academic', head: 'Semester VI Tuition Fee', amount: 40000 },
+        { id: 'fh2', session: '2025-2026', category: 'academic', label: 'Academic', head: 'Examination Fee', amount: 1500 },
+        { id: 'fh3', session: '2025-2026', category: 'misc', label: 'Miscellaneous', head: 'Library & Lab Fee', amount: 500 },
+        { id: 'fh4', session: '2025-2026', category: 'hostel', label: 'Hostel', head: 'Hostel Maintenance Charges', amount: 2000 },
+        { id: 'fh5', session: '2025-2026', category: 'hostel', label: 'Hostel', head: 'Hostel Mess Security', amount: 500 },
+        { id: 'fh6', session: '2025-2026', category: 'transport', label: 'Transport', head: 'Transport Fee - Odd Semester', amount: 500 }
+    ];
+    let activeFeeCategory = 'all';
+    let selectedFeeHeadIds = new Set();
+
+    window.selectFeeCategory = function(cat) {
+        activeFeeCategory = cat;
+        document.querySelectorAll('.fee-cat-tile').forEach(el => {
+            el.classList.toggle('active', el.dataset.cat === cat);
+        });
+        renderFeeBreakdown();
+    };
+
+    window.renderFeeBreakdown = function() {
+        const tbody = document.getElementById('feeHeadsTableBody');
+        const strip = document.getElementById('feeSummaryStrip');
+        const countEl = document.getElementById('feeHeadCount');
+        if (!tbody || !strip) return;
+
+        const totalsByCat = { academic: 0, hostel: 0, transport: 0, misc: 0 };
+        FEE_HEADS.forEach(h => { totalsByCat[h.category] += h.amount; });
+
+        const catMeta = {
+            academic: { icon: 'fa-graduation-cap', label: 'Academic', color: '#1e3a8a' },
+            hostel: { icon: 'fa-hotel', label: 'Hostel', color: '#b45309' },
+            transport: { icon: 'fa-bus', label: 'Transport', color: '#0f766e' },
+            misc: { icon: 'fa-receipt', label: 'Miscellaneous', color: '#7e22ce' }
+        };
+
+        // Summary strip: show every category only on "All Fees"; otherwise show just the selected one, highlighted
+        const catsToShow = activeFeeCategory === 'all' ? Object.keys(catMeta) : [activeFeeCategory];
+        const isSingle = catsToShow.length === 1;
+        strip.className = 'fee-summary-strip' + (isSingle ? ' single' : '');
+        strip.innerHTML = catsToShow.map(cat => `
+            <div class="fee-summary-stat" style="--stat-color:${catMeta[cat].color};">
+                <div class="fee-stat-icon"><i class="fas ${catMeta[cat].icon}"></i></div>
+                <div>
+                    <div class="fee-stat-label">${catMeta[cat].label}</div>
+                    <div class="fee-stat-amount">${formatINR(totalsByCat[cat])}</div>
+                </div>
+            </div>`).join('');
+
+        const rows = activeFeeCategory === 'all' ? FEE_HEADS : FEE_HEADS.filter(h => h.category === activeFeeCategory);
+        const rowsTotal = rows.reduce((sum, h) => sum + h.amount, 0);
+
+        if (countEl) countEl.textContent = rows.length + ' head' + (rows.length === 1 ? '' : 's');
+
+        const bodyRows = rows.length ? rows.map((h, i) => `
+            <tr class="${selectedFeeHeadIds.has(h.id) ? 'fee-row-selected' : ''}">
+                <td><input type="checkbox" class="fee-head-checkbox" data-id="${h.id}" ${selectedFeeHeadIds.has(h.id) ? 'checked' : ''} onchange="toggleFeeHeadSelection('${h.id}', this.checked)" /></td>
+                <td>${i + 1}</td>
+                <td>${h.session}</td>
+                <td><span class="badge-soft">${h.label}</span></td>
+                <td>${h.head}</td>
+                <td style="text-align:right;font-weight:600;">${formatINR(h.amount)}</td>
+            </tr>`).join('') : `<tr><td colspan="6" class="text-muted">No fee heads found for this category.</td></tr>`;
+
+        const totalRow = rows.length ? `
+            <tr class="fee-total-row">
+                <td colspan="5" style="text-align:right;font-weight:700;">Total (${catMeta[activeFeeCategory] ? catMeta[activeFeeCategory].label : 'All Fees'})</td>
+                <td style="text-align:right;font-weight:700;color:#1e3a8a;">${formatINR(rowsTotal)}</td>
+            </tr>` : '';
+
+        tbody.innerHTML = bodyRows + totalRow;
+
+        const selectAllBox = document.getElementById('feeSelectAllCheckbox');
+        if (selectAllBox) {
+            selectAllBox.checked = rows.length > 0 && rows.every(h => selectedFeeHeadIds.has(h.id));
+        }
+        updateFeeSelectionSummary();
+    };
+
+    window.toggleFeeHeadSelection = function(id, checked) {
+        if (checked) selectedFeeHeadIds.add(id); else selectedFeeHeadIds.delete(id);
+        renderFeeBreakdown();
+    };
+
+    window.toggleSelectAllFeeHeads = function(checked) {
+        const rows = activeFeeCategory === 'all' ? FEE_HEADS : FEE_HEADS.filter(h => h.category === activeFeeCategory);
+        rows.forEach(h => { if (checked) selectedFeeHeadIds.add(h.id); else selectedFeeHeadIds.delete(h.id); });
+        renderFeeBreakdown();
+    };
+
+    window.updateFeeSelectionSummary = function() {
+        const amountEl = document.getElementById('feeSelectedAmount');
+        const countLabelEl = document.getElementById('feeSelectedCount');
+        const payBtn = document.getElementById('paySelectedFeesBtn');
+        if (!amountEl) return;
+
+        const selectedHeads = FEE_HEADS.filter(h => selectedFeeHeadIds.has(h.id));
+        const total = selectedHeads.reduce((sum, h) => sum + h.amount, 0);
+
+        amountEl.textContent = formatINR(total);
+        countLabelEl.textContent = selectedHeads.length
+            ? selectedHeads.length + ' head' + (selectedHeads.length === 1 ? '' : 's') + ' selected'
+            : 'No fee heads selected';
+
+        if (payBtn) {
+            const disabled = selectedHeads.length === 0;
+            payBtn.disabled = disabled;
+            payBtn.style.opacity = disabled ? '0.5' : '1';
+            payBtn.style.cursor = disabled ? 'default' : 'pointer';
+        }
+    };
+
+    window.paySelectedFeeHeads = function() {
+        const selectedHeads = FEE_HEADS.filter(h => selectedFeeHeadIds.has(h.id));
+        if (!selectedHeads.length) {
+            showToast('⚠️ Select at least one fee head to pay.', 'error');
+            return;
+        }
+        const amount = selectedHeads.reduce((sum, h) => sum + h.amount, 0);
+        const purpose = selectedHeads.length === 1
+            ? selectedHeads[0].head
+            : selectedHeads.length + ' Fee Heads (' + selectedHeads.map(h => h.label).filter((v, i, a) => a.indexOf(v) === i).join(', ') + ')';
+        openFeePaymentModal(amount, purpose);
+    };
+
+    // ================= REALISTIC CARD PREVIEW (added) =================
+    function detectCardBrand(num) {
+        if (/^4/.test(num)) return 'VISA';
+        if (/^(5[1-5]|2[2-7])/.test(num)) return 'Mastercard';
+        if (/^3[47]/.test(num)) return 'AMEX';
+        if (/^(60|65|81|82|352|353|354|355|356|357|358|508)/.test(num)) return 'RuPay';
+        return 'CARD';
+    }
+
+    function resetCardPreview() {
+        const preview = document.getElementById('cardPreview');
+        if (preview) preview.classList.remove('flipped');
+        const numDisp = document.getElementById('cardNumberDisplay');
+        const nameDisp = document.getElementById('cardNameDisplay');
+        const expDisp = document.getElementById('cardExpiryDisplay');
+        const cvvDisp = document.getElementById('cardCvvDisplay');
+        const brandDisp = document.getElementById('cardBrandLogo');
+        if (numDisp) numDisp.textContent = '•••• •••• •••• ••••';
+        if (nameDisp) nameDisp.textContent = 'YOUR NAME';
+        if (expDisp) expDisp.textContent = 'MM/YY';
+        if (cvvDisp) cvvDisp.textContent = '•••';
+        if (brandDisp) brandDisp.textContent = 'CARD';
+    }
+
+    const cardNumberEl = document.getElementById('cardNumberInput');
+    if (cardNumberEl) {
+        cardNumberEl.addEventListener('input', function() {
+            let digits = this.value.replace(/\D/g, '').slice(0, 16);
+            let formatted = digits.replace(/(.{4})/g, '$1 ').trim();
+            this.value = formatted;
+
+            const brand = detectCardBrand(digits);
+            const brandDisp = document.getElementById('cardBrandLogo');
+            if (brandDisp) brandDisp.textContent = brand;
+
+            const numDisp = document.getElementById('cardNumberDisplay');
+            if (numDisp) {
+                const padded = (formatted + ' •••• •••• •••• ••••').split(' ').slice(0, 4).join(' ');
+                numDisp.textContent = digits.length ? padded : '•••• •••• •••• ••••';
+            }
+        });
+    }
+
+    const cardExpiryEl = document.getElementById('cardExpiryInput');
+    if (cardExpiryEl) {
+        cardExpiryEl.addEventListener('input', function() {
+            let digits = this.value.replace(/\D/g, '').slice(0, 4);
+            if (digits.length >= 3) {
+                this.value = digits.slice(0, 2) + '/' + digits.slice(2);
+            } else {
+                this.value = digits;
+            }
+            const expDisp = document.getElementById('cardExpiryDisplay');
+            if (expDisp) expDisp.textContent = this.value || 'MM/YY';
+        });
+    }
+
+    const cardNameEl = document.getElementById('cardNameInput');
+    if (cardNameEl) {
+        cardNameEl.addEventListener('input', function() {
+            const nameDisp = document.getElementById('cardNameDisplay');
+            if (nameDisp) nameDisp.textContent = this.value ? this.value.toUpperCase() : 'YOUR NAME';
+        });
+    }
+
+    const cardCvvEl = document.getElementById('cardCvvInput');
+    if (cardCvvEl) {
+        cardCvvEl.addEventListener('input', function() {
+            const cvvDisp = document.getElementById('cardCvvDisplay');
+            if (cvvDisp) cvvDisp.textContent = this.value.replace(/\D/g, '').slice(0, 3) || '•••';
+        });
+        cardCvvEl.addEventListener('focus', function() {
+            const preview = document.getElementById('cardPreview');
+            if (preview) preview.classList.add('flipped');
+        });
+        cardCvvEl.addEventListener('blur', function() {
+            const preview = document.getElementById('cardPreview');
+            if (preview) preview.classList.remove('flipped');
+        });
+    }
 
     // ================= SEMESTER PERFORMANCE DATA =================
     const semData = {
@@ -2361,13 +2855,321 @@
         renderSemPanel(sem);
     };
 
-    // ================= GENERATE QR =================
-    window.generateQR = function() {
-        showToast('📱 QR Session Generated!', 'success');
-        const status = document.querySelector('#qrCard .badge-success');
-        if (status) {
-            status.textContent = '● active';
+    // ================= GENERATE QR (ATTENDANCE SESSION) =================
+    const QR_SESSION_KEY = 'soet_qr_session';
+    const QR_SESSION_VALID_MINUTES = 15;
+    let facQrPollTimer = null;
+
+    function getQrSession() {
+        try { return JSON.parse(localStorage.getItem(QR_SESSION_KEY)) || null; } catch (e) { return null; }
+    }
+    function saveQrSession(session) {
+        localStorage.setItem(QR_SESSION_KEY, JSON.stringify(session));
+    }
+    function isQrSessionActive(session) {
+        return !!(session && session.code && session.expiresAt && Date.now() < session.expiresAt);
+    }
+
+    function renderFacQr(code) {
+        const container = document.getElementById('facQrCodeContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(container, {
+                text: code,
+                width: 180,
+                height: 180,
+                colorDark: '#1e3a8a',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            const img = document.createElement('img');
+            img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(code);
+            img.width = 180;
+            img.height = 180;
+            container.appendChild(img);
         }
+    }
+
+    function renderFacQrSessionStudents(session) {
+        const wrap = document.getElementById('facQrSessionStudents');
+        const countEl = document.getElementById('facQrScannedCount');
+        if (!wrap) return;
+        const rolls = session.scannedRolls || [];
+        if (countEl) countEl.textContent = String(rolls.length);
+        if (rolls.length === 0) {
+            wrap.innerHTML = '<p class="text-muted" style="grid-column:1/-1;text-align:center;padding:0.5rem 0;">No students in this session yet.</p>';
+            return;
+        }
+        wrap.innerHTML = rolls.map(r => {
+            const s = facStudents.find(f => f.rollNo === r.rollNo);
+            const name = s ? s.name : r.rollNo;
+            return `<div class="student-chip" style="cursor:default;">${name}<small style="opacity:0.6;display:block;font-size:0.65rem;">${r.rollNo}</small><i class="fas fa-check-circle" style="color:#16a34a;"></i></div>`;
+        }).join('');
+    }
+
+    window.stopFacQrPolling = function() {
+        if (facQrPollTimer) { clearInterval(facQrPollTimer); facQrPollTimer = null; }
+    };
+
+    function startFacQrPolling() {
+        stopFacQrPolling();
+        facQrPollTimer = setInterval(function() {
+            const pageEl = document.getElementById('page-attendance');
+            if (!pageEl || !pageEl.classList.contains('active')) { stopFacQrPolling(); return; }
+            renderFacQrPage();
+        }, 3000);
+    }
+
+    window.resetFacQrDisplay = function() {
+        const container = document.getElementById('facQrCodeContainer');
+        if (!container) return;
+        stopFacQrPolling();
+        container.innerHTML = '<i class="fas fa-qrcode"></i>';
+        const subjectLabel = document.getElementById('facQrSubjectLabel');
+        const timeLabel = document.getElementById('facQrTimeLabel');
+        const statusBadge = document.getElementById('facQrStatusBadge');
+        if (subjectLabel) subjectLabel.textContent = 'No active session';
+        if (timeLabel) timeLabel.textContent = 'Click "Generate" to start a QR session';
+        if (statusBadge) { statusBadge.className = 'badge-soft'; statusBadge.textContent = '● Inactive'; }
+        renderFacQrSessionStudents({ scannedRolls: [] });
+    };
+
+    window.renderFacQrPage = function() {
+        const container = document.getElementById('facQrCodeContainer');
+        if (!container) return;
+        const session = getQrSession();
+        const subjectLabel = document.getElementById('facQrSubjectLabel');
+        const timeLabel = document.getElementById('facQrTimeLabel');
+        const statusBadge = document.getElementById('facQrStatusBadge');
+
+        if (isQrSessionActive(session)) {
+            renderFacQr(session.code);
+            if (subjectLabel) subjectLabel.textContent = session.subject;
+            if (timeLabel) {
+                const mins = Math.max(0, Math.round((session.expiresAt - Date.now()) / 60000));
+                timeLabel.textContent = 'Code: ' + session.code + ' · expires in ' + mins + ' min';
+            }
+            if (statusBadge) { statusBadge.className = 'badge-success'; statusBadge.textContent = '● Active'; }
+            renderFacQrSessionStudents(session);
+            startFacQrPolling();
+        } else {
+            container.innerHTML = '<i class="fas fa-qrcode"></i>';
+            if (subjectLabel) subjectLabel.textContent = 'No active session';
+            if (timeLabel) timeLabel.textContent = 'Click "Generate" to start a QR session';
+            if (statusBadge) { statusBadge.className = 'badge-soft'; statusBadge.textContent = '● Inactive'; }
+            renderFacQrSessionStudents({ scannedRolls: [] });
+            stopFacQrPolling();
+        }
+    };
+
+    window.generateQR = function() {
+        if (!currentUser || (currentUser.role !== 'faculty' && currentUser.role !== 'admin')) {
+            showToast('⛔ Only faculty can generate a QR session.', 'error');
+            return;
+        }
+        const code = 'SOET-' + Math.random().toString(36).slice(2, 8).toUpperCase() + '-' + Date.now().toString(36).slice(-4).toUpperCase();
+        const now = Date.now();
+        const session = {
+            code: code,
+            subject: 'CS402 · Distributed Systems',
+            facultyEmail: currentUser.email,
+            createdAt: now,
+            expiresAt: now + QR_SESSION_VALID_MINUTES * 60 * 1000,
+            scannedRolls: []
+        };
+        saveQrSession(session);
+        showToast('📱 QR Session Generated!', 'success');
+
+        if (document.getElementById('facQrCodeContainer')) renderFacQrPage();
+    };
+
+    window.downloadFacQr = function() {
+        const session = getQrSession();
+        if (!isQrSessionActive(session)) {
+            showToast('⚠️ Generate a QR session first.', 'error');
+            return;
+        }
+        const container = document.getElementById('facQrCodeContainer');
+        if (!container) return;
+        const canvas = container.querySelector('canvas');
+        const img = container.querySelector('img');
+        let dataUrl = null;
+        try {
+            if (canvas) dataUrl = canvas.toDataURL('image/png');
+            else if (img) dataUrl = img.src;
+        } catch (e) { dataUrl = null; }
+        if (!dataUrl) { showToast('⚠️ QR not ready yet.', 'error'); return; }
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'soet-qr-' + session.code + '.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('⬇️ QR code downloaded', 'success');
+    };
+
+    // ================= STUDENT: SCAN QR TO MARK ATTENDANCE =================
+    let qrScanStream = null;
+    let qrScanRafId = null;
+    let qrScanBusy = false;
+
+    function setQrScanStatus(message, type) {
+        const el = document.getElementById('qrScanStatus');
+        if (!el) return;
+        el.textContent = message || '';
+        el.className = 'qr-scan-status' + (type ? (' status-' + type) : '');
+    }
+
+    function markAttendanceForCurrentStudent(session) {
+        if (!currentUser || currentUser.role !== 'student') {
+            return { ok: false, message: '⛔ Only students can mark attendance via QR.' };
+        }
+        const myRoll = (currentUser.rollNo || '').trim();
+        if (!myRoll) {
+            return { ok: false, message: '⚠️ No Roll No. found on your profile. Please contact admin.' };
+        }
+
+        const already = (session.scannedRolls || []).find(r => r.rollNo === myRoll);
+        if (already) {
+            return { ok: false, message: 'ℹ️ Attendance already marked for today (' + session.subject + ').', already: true };
+        }
+
+        // Ensure the student appears in the faculty roster
+        if (!facStudents.find(f => f.rollNo === myRoll)) {
+            facStudents.push({ name: currentUser.name || myRoll, rollNo: myRoll });
+            saveFacStudents();
+        }
+
+        // Mark present in the shared today-attendance map (same store used by the faculty Attendance page)
+        const allAtt = getTodayAttendanceMap();
+        const key = todayKey();
+        allAtt[key] = allAtt[key] || {};
+        allAtt[key][myRoll] = true;
+        localStorage.setItem('soet_today_attendance', JSON.stringify(allAtt));
+
+        // Record the scan against the session
+        session.scannedRolls = session.scannedRolls || [];
+        session.scannedRolls.push({ rollNo: myRoll, name: currentUser.name || myRoll, scannedAt: Date.now() });
+        saveQrSession(session);
+
+        // Refresh any visible UI that reflects attendance
+        if (typeof renderFacStudentChips === 'function') renderFacStudentChips();
+        if (typeof renderFacAttendanceStats === 'function') renderFacAttendanceStats();
+        if (typeof renderMyAttendance === 'function') renderMyAttendance(currentAttSem || 6);
+        if (typeof updateDashboardTodayAttendance === 'function') updateDashboardTodayAttendance();
+        if (document.getElementById('facQrCodeContainer')) renderFacQrPage();
+
+        return { ok: true, message: '✅ Attendance marked for ' + session.subject + '!' };
+    }
+
+    function handleQrScanResult(rawCode) {
+        if (qrScanBusy) return;
+        const code = (rawCode || '').trim();
+        if (!code) return;
+        qrScanBusy = true;
+
+        const session = getQrSession();
+        let result;
+        if (!code.toUpperCase().startsWith('SOET-')) {
+            result = { ok: false, message: '❌ Invalid QR code. Please scan the code shown by your faculty.' };
+        } else if (!isQrSessionActive(session)) {
+            result = { ok: false, message: '⏰ No active QR session found. Ask your faculty to generate one.' };
+        } else if (session.code !== code) {
+            result = { ok: false, message: '❌ This QR code does not match the active session.' };
+        } else {
+            result = markAttendanceForCurrentStudent(session);
+        }
+
+        setQrScanStatus(result.message, result.ok ? 'success' : (result.already ? 'info' : 'error'));
+        showToast(result.message, result.ok ? 'success' : (result.already ? 'info' : 'error'));
+
+        if (result.ok) {
+            stopQrScan();
+        }
+
+        setTimeout(function() { qrScanBusy = false; }, 800);
+    }
+
+    window.submitManualQrCode = function() {
+        const input = document.getElementById('qrManualCode');
+        if (!input) return;
+        const val = input.value.trim().toUpperCase();
+        if (!val) {
+            setQrScanStatus('⚠️ Please enter a session code.', 'error');
+            return;
+        }
+        handleQrScanResult(val);
+        input.value = '';
+    };
+
+    function qrScanLoop() {
+        const video = document.getElementById('qrScanVideo');
+        const canvas = document.getElementById('qrScanCanvas');
+        if (!video || !canvas || !qrScanStream) return;
+
+        if (video.readyState === video.HAVE_ENOUGH_DATA && typeof jsQR !== 'undefined') {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const result = jsQR(imageData.data, imageData.width, imageData.height);
+                if (result && result.data) {
+                    handleQrScanResult(result.data);
+                }
+            } catch (e) { /* ignore transient decode errors */ }
+        }
+        qrScanRafId = requestAnimationFrame(qrScanLoop);
+    }
+
+    window.startQrScan = function() {
+        if (!currentUser || currentUser.role !== 'student') {
+            showToast('⛔ Only students can scan QR for attendance.', 'error');
+            return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            setQrScanStatus('⚠️ Camera not supported on this device. Please use manual entry below.', 'error');
+            return;
+        }
+        setQrScanStatus('Requesting camera access…', 'info');
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function(stream) {
+                qrScanStream = stream;
+                const video = document.getElementById('qrScanVideo');
+                const videoWrap = document.getElementById('qrScanVideoWrap');
+                const placeholder = document.getElementById('qrScanPlaceholder');
+                const startBtn = document.getElementById('qrScanStartBtn');
+                const stopBtn = document.getElementById('qrScanStopBtn');
+                if (video) video.srcObject = stream;
+                if (videoWrap) videoWrap.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+                if (startBtn) startBtn.style.display = 'none';
+                if (stopBtn) stopBtn.style.display = 'inline-flex';
+                setQrScanStatus('Scanning… point your camera at the QR code.', 'info');
+                qrScanRafId = requestAnimationFrame(qrScanLoop);
+            })
+            .catch(function() {
+                setQrScanStatus('⚠️ Camera access denied or unavailable. Please enter the code manually below.', 'error');
+            });
+    };
+
+    window.stopQrScan = function() {
+        if (qrScanRafId) { cancelAnimationFrame(qrScanRafId); qrScanRafId = null; }
+        if (qrScanStream) {
+            qrScanStream.getTracks().forEach(t => t.stop());
+            qrScanStream = null;
+        }
+        const videoWrap = document.getElementById('qrScanVideoWrap');
+        const placeholder = document.getElementById('qrScanPlaceholder');
+        const startBtn = document.getElementById('qrScanStartBtn');
+        const stopBtn = document.getElementById('qrScanStopBtn');
+        if (videoWrap) videoWrap.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'block';
+        if (startBtn) startBtn.style.display = 'inline-flex';
+        if (stopBtn) stopBtn.style.display = 'none';
     };
 
     // ================= EVENTS SYSTEM =================
