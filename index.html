@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>K.R. Mangalam University | SOET Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="chatbot.css" />
+    <link rel="stylesheet" href="dashboard-chatbot.css" />
+</head>
+<body>
+
+    <!-- Toast -->
+    <div id="toast" class="toast">Notification</div>
+
+    <!-- AUTH MODAL -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-container">
+            <button class="close-auth" onclick="closeLogin()"><i class="fas fa-times"></i></button>
+            <h2>SOET <span>Portal</span></h2>
+            <p id="authSubText">Access your Academic & ERP Dashboard</p>
+            <div id="authError" class="auth-error">Error message</div>
+            <form id="authForm">
+                <div class="auth-input-group" id="authNameGroup" style="display:none;">
+                    <label>Full Name</label>
+                    <input type="text" id="authName" placeholder="Enter your full name" />
+                </div>
+                <div class="auth-input-group" id="authRollGroup" style="display:none;">
+                    <label>Roll No.</label>
+                    <input type="text" id="authRoll" placeholder="e.g. 2024CSE001" />
+                </div>
+                <div class="auth-input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="authEmail" placeholder="student@krmangalam.edu" required />
+                </div>
+                <div class="auth-input-group">
+                    <label>Password</label>
+                    <input type="password" id="authPassword" placeholder="••••••••" required />
+                </div>
+                <div class="auth-input-group">
+                    <label>Role</label>
+                    <select id="authRole">
+                        <option value="student">Student</option>
+                        <option value="faculty">Faculty</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="auth-btn" id="authSubmitBtn"><i class="fas fa-arrow-right-to-bracket"></i> Sign In</button>
+            </form>
+            <div class="auth-switch">
+                <span id="authSwitchText">Don't have an account? </span>
+                <a id="switchToSignup">Register</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION MODAL -->
+    <div id="applyOverlay" class="apply-overlay">
+        <div class="apply-container">
+            <button class="close-apply" onclick="closeApply()"><i class="fas fa-times"></i></button>
+            <h2>📝 Apply Now <span>2026</span></h2>
+            <p>Register for your desired course — No login required</p>
+            <div id="applyError" class="auth-error" style="display:none;">Error message</div>
+            <div id="applySuccess" class="apply-success">
+                <i class="fas fa-check-circle" style="font-size:2rem;margin-bottom:0.5rem;display:block;"></i>
+                <strong>Application Submitted!</strong><br>
+                Your application has been received. Our admissions team will contact you shortly.
+            </div>
+            <form id="applyForm">
+                <div class="apply-input-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="applyName" placeholder="Enter your full name" required />
+                </div>
+                <div class="apply-input-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="applyEmail" placeholder="your@email.com" required />
+                </div>
+                <div class="apply-input-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" id="applyPhone" placeholder="+91 9876543210" required />
+                </div>
+                <div class="apply-input-group">
+                    <label>Date of Birth *</label>
+                    <input type="date" id="applyDob" required />
+                </div>
+                <div class="apply-input-group">
+                    <label>Gender *</label>
+                    <select id="applyGender" required>
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="apply-input-group">
+                    <label>Course Type *</label>
+                    <select id="applyCourseType" required onchange="updateCourses()">
+                        <option value="">Select Course Type</option>
+                        <option value="ug">Undergraduate (UG)</option>
+                        <option value="pg">Postgraduate (PG)</option>
+                        <option value="diploma">Diploma</option>
+                        <option value="phd">Doctoral (PhD)</option>
+                    </select>
+                </div>
+                <div class="apply-input-group">
+                    <label>Select Course *</label>
+                    <select id="applyCourse" required>
+                        <option value="">Select a course</option>
+                    </select>
+                </div>
+                <div class="apply-input-group">
+                    <label>Previous Education</label>
+                    <select id="applyEducation">
+                        <option value="">Select your highest qualification</option>
+                        <option value="10th">10th / Secondary</option>
+                        <option value="12th">12th / Higher Secondary</option>
+                        <option value="diploma">Diploma</option>
+                        <option value="bachelors">Bachelor's Degree</option>
+                        <option value="masters">Master's Degree</option>
+                    </select>
+                </div>
+                <div class="apply-input-group">
+                    <label>Address</label>
+                    <textarea id="applyAddress" placeholder="Enter your complete address"></textarea>
+                </div>
+                <div class="apply-input-group">
+                    <label>Additional Notes</label>
+                    <textarea id="applyNotes" placeholder="Any special requests or questions"></textarea>
+                </div>
+                <button type="submit" class="apply-btn" id="applySubmitBtn"><i class="fas fa-paper-plane"></i> Submit Application</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ASSIGNMENT SUBMIT MODAL -->
+    <div id="assignSubmitOverlay" class="auth-overlay">
+        <div class="auth-container">
+            <button class="close-auth" onclick="closeAssignSubmit()"><i class="fas fa-times"></i></button>
+            <h2><span>Submit</span> Assignment</h2>
+            <p id="assignSubmitTitle">Assignment Title</p>
+            <div id="assignSubmitError" class="auth-error"></div>
+            <div class="auth-input-group">
+                <label>Due By</label>
+                <input type="text" id="assignSubmitDueDisplay" class="input-slim" style="width:100%;" disabled>
+            </div>
+            <div class="auth-input-group">
+                <label>Notes / Answer (optional)</label>
+                <textarea id="assignSubmitNotes" class="input-slim" style="width:100%;min-height:80px;" placeholder="Write any notes about your submission..."></textarea>
+            </div>
+            <div class="auth-input-group">
+                <label>Attach File</label>
+                <input type="file" id="assignSubmitFile" class="input-slim" style="width:100%;">
+            </div>
+            <button class="auth-btn" id="assignSubmitConfirmBtn"><i class="fas fa-paper-plane"></i> Submit Assignment</button>
+        </div>
+    </div>
+
+    <!-- ================= PUBLIC WEBSITE ================= -->
+    <div id="publicWebsite">
+        <header class="public-header">
+            <div class="container">
+                <div class="header-brand">
+                    <div class="brand-box">KRMU</div>
+                    <h1>K.R. Mangalam University <span>The Complete World of Education</span></h1>
+                </div>
+                <div class="nav-links">
+                    <a onclick="scrollToSection('hero')">Home</a>
+                    <a onclick="scrollToSection('about')">About</a>
+                    <a onclick="openCourses()">Courses</a>
+                    <a href="javascript:void(0)" onclick="showToast('📊 Placement highlights available in the Student Portal after login!', 'info')">Placements</a>
+                    <a onclick="openResearchModal()">Research</a>
+                    <a onclick="openFeeStructure()">Fee Structure</a>
+                </div>
+                <div class="header-actions">
+                    <input type="text" class="search-public" placeholder="Search...">
+                    <button class="btn-login" onclick="openLogin()"><i class="fas fa-user"></i> Student Login</button>
+                </div>
+            </div>
+        </header>
+
+        <section id="hero" class="hero">
+            <div class="container hero-content">
+                <h1>Become Future Ready</h1>
+                <p>Empowering the next generation of leaders through innovation, research, and industry excellence.</p>
+                <div class="hero-actions">
+                    <button class="hero-btn primary" onclick="openApply()"><i class="fas fa-edit"></i> Apply Now 2026</button>
+                    <button class="hero-btn" onclick="window.open('https://www.youtube.com/watch?v=osOlf5Eh2sM', '_blank')"><i class="fas fa-video"></i> Virtual Tour</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="ticker-wrap">
+            <div class="ticker">
+                <div class="ticker-item"><span>NEW</span> Admissions Open for 2026 Batch. Apply Now!</div>
+                <div class="ticker-item"><span>EXAM</span> Mid Semester Exams Start From 10 September</div>
+                <div class="ticker-item"><span>EVENT</span> Hackathon Registration Open - Win Prizes!</div>
+                <div class="ticker-item"><span>HOLIDAY</span> University Closed on 15th August for Independence Day</div>
+            </div>
+        </div>
+
+        <section class="quick-links">
+            <div class="container">
+                <div class="grid-7">
+                    <div class="quick-card" onclick="openLogin()"><i class="fas fa-user-graduate"></i><h4>Student Portal</h4></div>
+                    <div class="quick-card" onclick="openLogin()"><i class="fas fa-chalkboard-teacher"></i><h4>Faculty Section</h4></div>
+                    <div class="quick-card" onclick="openAcademicCalendarPDF()"><i class="fas fa-calendar-alt"></i><h4>Academic Calendar</h4></div>
+                    <div class="quick-card" onclick="openResearchModal()"><i class="fas fa-flask"></i><h4>Research</h4></div>
+                    <div class="quick-card" onclick="openFeeStructure()"><i class="fas fa-file-invoice-dollar"></i><h4>Fee Structure</h4></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="about-section">
+            <div class="container">
+                <div>
+                    <h2 style="font-size:2rem;color:#0f172a;margin-bottom:1rem;">About K.R. Mangalam University</h2>
+                    <p style="color:#475569;line-height:1.6;margin-bottom:1rem;">
+                        Established in 2013, K.R. Mangalam University is a premier institution located in Gurugram, Haryana.
+                        With a sprawling 30-acre campus, we are dedicated to providing a holistic education that blends academic rigor with practical industry experience.
+                    </p>
+                    <p style="color:#475569;line-height:1.6;">
+                        Our university is recognized by UGC and accredited with an <strong>NAAC A Grade</strong>. We foster an environment of innovation, research, and global collaboration.
+                    </p>
+                    <button class="btn-login" style="margin-top:1.5rem;" onclick="showToast('📖 Read more about our history','info')">Read More</button>
+                </div>
+                <div>
+                    <div class="about-stats">
+                        <div class="stat-box"><h3>18k+</h3><p>Students</p></div>
+                        <div class="stat-box"><h3>800+</h3><p>Faculty & Staff</p></div>
+                        <div class="stat-box"><h3>12+</h3><p>Schools</p></div>
+                        <div class="stat-box"><h3>100+</h3><p>Programs</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="public-footer">
+            <div class="container">
+                <h4>K.R. Mangalam University</h4>
+                <p>Gurugram, Haryana | admission@krmangalam.edu.in | +91-123-456-7890</p>
+                <div class="copy">&copy; 2026 K.R. Mangalam University. All Rights Reserved.</div>
+            </div>
+        </footer>
+
+        <!-- ================= AI CHATBOT WIDGET ================= -->
+        <button id="soetChatbotBtn" aria-label="Open AI Assistant">
+            <i class="fas fa-comment-dots"></i>
+            <span class="cb-pulse"></span>
+        </button>
+
+        <div id="soetChatbotWindow">
+            <div class="cb-header">
+                <div class="cb-avatar"><i class="fas fa-robot"></i></div>
+                <div class="cb-title">
+                    <h4>SOET AI Assistant</h4>
+                    <span>Online · Ask me anything</span>
+                </div>
+                <button class="cb-close" id="cbCloseBtn" aria-label="Close chat"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="cb-body" id="cbBody"></div>
+            <div class="cb-quick-replies" id="cbQuickReplies">
+                <span class="cb-chip" data-q="What courses do you offer?">Courses</span>
+                <span class="cb-chip" data-q="What is the fee structure?">Fees</span>
+                <span class="cb-chip" data-q="How do I apply for admission?">Admission</span>
+                <span class="cb-chip" data-q="Tell me about hostel facilities">Hostel</span>
+                <span class="cb-chip" data-q="What are the placement details?">Placements</span>
+                <span class="cb-chip" data-q="How do I contact the university?">Contact</span>
+            </div>
+            <div class="cb-input-row">
+                <input type="text" id="cbInput" placeholder="Type your question..." autocomplete="off" />
+                <button class="cb-send-btn" id="cbSendBtn" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= RESEARCH MODAL ================= -->
+    <div id="researchOverlay" class="auth-overlay" style="z-index:9999;">
+        <div class="apply-container" style="max-width: 1100px; padding: 0; overflow: hidden; border-radius: 24px;">
+            <button class="close-apply" onclick="closeResearchModal()" style="z-index: 10; color: #0f172a;"><i class="fas fa-times"></i></button>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100%;">
+                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 3rem 2.5rem; color: white; display: flex; flex-direction: column; justify-content: center;">
+                    <h2 style="font-size: 2.2rem; color: white; margin-bottom: 1.5rem;">Research &<br>Development Cell</h2>
+                    <p style="color: #94a3b8; line-height: 1.6; margin-bottom: 2rem; font-size: 0.95rem;">
+                        K.R. Mangalam University fosters a culture of innovation, providing state-of-the-art labs, research centres, and global collaborations.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div>
+                            <h3 style="font-size: 2.5rem; color: #f59e0b; margin-bottom: 0.2rem;">100+</h3>
+                            <p style="font-size: 0.8rem; color: #cbd5e1;">High-End Teaching<br>and Research Labs</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 2.5rem; color: #3b82f6; margin-bottom: 0.2rem;">4000+</h3>
+                            <p style="font-size: 0.8rem; color: #cbd5e1;">No. of Research<br>Publications</p>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 2.5rem; color: #10b981; margin-bottom: 0.2rem;">16Cr+</h3>
+                            <p style="font-size: 0.8rem; color: #cbd5e1;">Research and Consultancy<br>Grants to the University</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 3rem 2.5rem; background: white; overflow-y: auto; max-height: 80vh;">
+                    <h3 style="font-size: 1.4rem; color: #0f172a; margin-bottom: 1.5rem;">Research and Development Cell</h3>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: 600; color: #475569; padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleResearchAccordion('phd')">
+                            <span>Ph.D. Programmes</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div id="phd-content" style="display: none; padding: 1rem 0; color: #64748b; font-size: 0.9rem; line-height: 1.8;">
+                            <ul style="list-style: disc; padding-left: 1.2rem;">
+                                <li>Ph.D. in Computer Science & Engineering</li>
+                                <li>Ph.D. in Management Studies</li>
+                                <li>Ph.D. in English Literature</li>
+                                <li>Ph.D. in Physics & Chemistry</li>
+                                <li>Ph.D. in Pharmacy</li>
+                                <li>Ph.D. in Biotechnology</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: 600; color: #475569; padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleResearchAccordion('admissions')">
+                            <span>Calls For Ph.D. Admission</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div id="admissions-content" style="display: none; padding: 1rem 0; color: #64748b; font-size: 0.9rem; line-height: 1.8;">
+                            <p>Applications are invited from eligible candidates for admission to the Ph.D. program for the academic year 2026-27.</p>
+                            <ul style="list-style: disc; padding-left: 1.2rem; margin-top: 0.5rem;">
+                                <li><strong>Eligibility:</strong> Master's degree with minimum 55% marks.</li>
+                                <li><strong>Selection:</strong> Based on entrance test and interview.</li>
+                                <li><strong>Application Deadline:</strong> 31st August 2026.</li>
+                            </ul>
+                            <button class="btn btn-primary mt-2" onclick="showToast('📧 Redirecting to admission portal...', 'info')">Apply Now for Ph.D.</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: 600; color: #475569; padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleResearchAccordion('innovation')">
+                            <span>Research And Innovation</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div id="innovation-content" style="display: none; padding: 1rem 0; color: #64748b; font-size: 0.9rem; line-height: 1.8;">
+                            <p>The university encourages interdisciplinary research, innovation, and entrepreneurship among students and faculty.</p>
+                            <ul style="list-style: disc; padding-left: 1.2rem; margin-top: 0.5rem;">
+                                <li><strong>Innovation Labs:</strong> Dedicated spaces for prototyping and AI/ML research.</li>
+                                <li><strong>Startup Incubation:</strong> Support for student-led startups.</li>
+                                <li><strong>Collaborations:</strong> Partnerships with IITs, NITs, and global universities.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <div style="font-weight: 600; color: #475569; padding: 0.6rem 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; justify-content: space-between;" onclick="toggleResearchAccordion('centre')">
+                            <span>Research Centre</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div id="centre-content" style="display: none; padding: 1rem 0; color: #64748b; font-size: 0.9rem; line-height: 1.8;">
+                            <p>The Research Centre serves as a hub for faculty and Ph.D. scholars to conduct high-impact research in Engineering, Sciences, Management, and Humanities.</p>
+                            <ul style="list-style: disc; padding-left: 1.2rem; margin-top: 0.5rem;">
+                                <li><strong>Funded Projects:</strong> DST, UGC, and AICTE sponsored projects.</li>
+                                <li><strong>Publications:</strong> Scopus, WoS, and Peer-Reviewed journals.</li>
+                                <li><strong>Workshops:</strong> Regular sessions on research methodology and data science.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="showToast('📄 Opening Research Portal...', 'info')"><i class="fas fa-external-link-alt"></i> Visit Research Portal</button>
+                        <button class="btn btn-outline" onclick="showToast('📢 Research newsletter sent to your email!', 'success')"><i class="fas fa-newspaper"></i> Subscribe to Newsletter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= FEE STRUCTURE MODAL ================= -->
+    <div id="feeOverlay" class="auth-overlay" style="z-index:9999;">
+        <div class="apply-container" style="max-width: 1200px; padding: 0; overflow: hidden; border-radius: 24px;">
+            <button class="close-apply" onclick="closeFeeStructure()" style="z-index: 10; color: #0f172a;"><i class="fas fa-times"></i></button>
+            
+            <div style="display: flex; flex-wrap: wrap; height: 100%;">
+                <div style="width: 250px; background: #f8fafc; padding: 2rem 0; border-right: 1px solid #e2e8f0; flex-shrink: 0; overflow-y: auto; max-height: 80vh;">
+                    <div style="font-weight: 700; color: #0f172a; padding: 0 1.5rem 1rem 1.5rem; border-bottom: 1px solid #e2e8f0;">Schools & Departments</div>
+                    <div id="feeSidebarList" style="margin-top: 0.5rem;"></div>
+                </div>
+                <div style="flex: 1; padding: 2rem 2.5rem; background: white; overflow-y: auto; max-height: 80vh;">
+                    <div id="feeContentArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= PAYMENT GATEWAY MODAL (opens on Pay Now) ================= -->
+    <div id="paymentGatewayOverlay" class="auth-overlay" style="z-index:9999;">
+        <div class="apply-container" style="max-width:820px;padding:0;overflow:hidden;border-radius:20px;">
+            <button class="close-apply" onclick="closePaymentGateway()" style="z-index:20;color:#0f172a;"><i class="fas fa-times"></i></button>
+
+            <!-- ===== Header bar (like a real gateway) ===== -->
+            <div style="background:#0f172a;color:#fff;padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:36px;height:36px;border-radius:8px;background:#1e3a8a;display:flex;align-items:center;justify-content:center;font-weight:700;">SO</div>
+                    <div>
+                        <div style="font-weight:700;font-size:0.95rem;">SOET PayGateway</div>
+                        <div style="font-size:0.72rem;opacity:0.7;"><i class="fas fa-lock"></i> 256-bit secured checkout</div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:0.72rem;opacity:0.75;">Amount Payable</div>
+                    <div style="font-size:1.3rem;font-weight:700;" id="pgAmountDisplay">₹0</div>
+                    <div style="font-size:0.68rem;opacity:0.7;max-width:220px;" id="pgPurposeDisplay">Tuition Fee</div>
+                </div>
+            </div>
+
+            <!-- ===== Body: sidebar tabs + content ===== -->
+            <div id="pgBody" style="display:flex;flex-wrap:wrap;min-height:440px;">
+                <div id="pgSidebar" style="width:190px;background:#f8fafc;border-right:1px solid #e2e8f0;flex-shrink:0;">
+                    <div class="pg-tab active" data-tab="upi" onclick="switchPgTab('upi')"><i class="fas fa-qrcode"></i> UPI</div>
+                    <div class="pg-tab" data-tab="card" onclick="switchPgTab('card')"><i class="fas fa-credit-card"></i> Cards</div>
+                    <div class="pg-tab" data-tab="netbanking" onclick="switchPgTab('netbanking')"><i class="fas fa-building-columns"></i> Netbanking</div>
+                    <div class="pg-tab" data-tab="wallet" onclick="switchPgTab('wallet')"><i class="fas fa-wallet"></i> Wallets</div>
+                </div>
+
+                <div style="flex:1;min-width:280px;padding:1.6rem;position:relative;">
+
+                    <!-- ===== UPI TAB ===== -->
+                    <div id="pgTab-upi" class="pg-tab-content">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using UPI</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">Scan the QR with any UPI app, or enter your UPI ID below</p>
+
+                        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+                            <div style="text-align:center;">
+                                <div id="upiQrCode" style="display:flex;justify-content:center;align-items:center;background:white;border:1px solid #e2e8f0;border-radius:14px;padding:0.8rem;width:180px;height:180px;"></div>
+                                <div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;">Expires in <span id="upiTimerDisplay">05:00</span></div>
+                            </div>
+                            <div style="flex:1;min-width:200px;">
+                                <div style="display:flex;gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> Google Pay</span>
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> PhonePe</span>
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> Paytm</span>
+                                    <span class="upi-app-chip"><i class="fas fa-mobile-screen-button"></i> BHIM</span>
+                                </div>
+                                <div class="auth-input-group">
+                                    <label>Or Enter UPI ID</label>
+                                    <input type="text" id="upiIdInput" placeholder="yourname@upi" />
+                                </div>
+                                <div id="upiTxnRefLine" style="font-size:0.72rem;color:#94a3b8;margin-bottom:0.8rem;">Txn Ref: <span id="upiTxnRefDisplay">--</span></div>
+                                <button class="auth-btn" id="upiPayBtn" onclick="processGatewayPayment('upi')"><i class="fas fa-check-circle"></i> Verify &amp; Pay</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===== CARD TAB ===== -->
+                    <div id="pgTab-card" class="pg-tab-content" style="display:none;">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using Card</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">Credit / Debit card accepted (Visa, Mastercard, RuPay, Amex)</p>
+
+                        <div class="card-preview-wrap">
+                            <div class="card-preview" id="cardPreview">
+                                <div class="card-face card-front">
+                                    <div class="card-face-top">
+                                        <div class="card-chip"><i class="fas fa-microchip"></i></div>
+                                        <div class="card-brand-logo" id="cardBrandLogo">CARD</div>
+                                    </div>
+                                    <div class="card-number-display" id="cardNumberDisplay">•••• •••• •••• ••••</div>
+                                    <div class="card-face-bottom">
+                                        <div>
+                                            <div class="card-mini-label">Card Holder</div>
+                                            <div class="card-mini-value" id="cardNameDisplay">YOUR NAME</div>
+                                        </div>
+                                        <div>
+                                            <div class="card-mini-label">Expires</div>
+                                            <div class="card-mini-value" id="cardExpiryDisplay">MM/YY</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-face card-back">
+                                    <div class="card-back-stripe"></div>
+                                    <div class="card-back-cvv">
+                                        <span id="cardCvvDisplay">•••</span>
+                                    </div>
+                                    <div class="card-back-note">Authorized signature — for customer verification only</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="auth-input-group">
+                            <label>Card Number</label>
+                            <div class="pg-input-icon-wrap">
+                                <i class="fas fa-credit-card pg-input-icon"></i>
+                                <input type="text" id="cardNumberInput" class="pg-input-with-icon" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric" autocomplete="cc-number" />
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:0.8rem;">
+                            <div class="auth-input-group" style="flex:1;">
+                                <label>Expiry (MM/YY)</label>
+                                <div class="pg-input-icon-wrap">
+                                    <i class="fas fa-calendar-days pg-input-icon"></i>
+                                    <input type="text" id="cardExpiryInput" class="pg-input-with-icon" placeholder="MM/YY" maxlength="5" inputmode="numeric" autocomplete="cc-exp" />
+                                </div>
+                            </div>
+                            <div class="auth-input-group" style="flex:1;">
+                                <label>CVV</label>
+                                <div class="pg-input-icon-wrap">
+                                    <i class="fas fa-lock pg-input-icon"></i>
+                                    <input type="password" id="cardCvvInput" class="pg-input-with-icon" placeholder="•••" maxlength="3" inputmode="numeric" autocomplete="cc-csc" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Name on Card</label>
+                            <div class="pg-input-icon-wrap">
+                                <i class="fas fa-user pg-input-icon"></i>
+                                <input type="text" id="cardNameInput" class="pg-input-with-icon" placeholder="As printed on card" autocomplete="cc-name" />
+                            </div>
+                        </div>
+
+                        <label class="pg-save-card-row">
+                            <input type="checkbox" id="cardSaveCheckbox" />
+                            <span>Save this card securely for faster checkout next time</span>
+                        </label>
+
+                        <button class="auth-btn" id="cardPayBtn" onclick="processGatewayPayment('card')"><i class="fas fa-lock"></i> Pay Securely</button>
+
+                        <div class="pg-secure-footer">
+                            <i class="fas fa-shield-halved"></i> Your card details are encrypted end-to-end and never stored on our servers
+                        </div>
+                    </div>
+
+                    <!-- ===== NETBANKING TAB ===== -->
+                    <div id="pgTab-netbanking" class="pg-tab-content" style="display:none;">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using Netbanking</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">You'll be redirected to your bank's login page</p>
+                        <div class="auth-input-group">
+                            <label>Select Bank</label>
+                            <select id="netbankingSelect">
+                                <option value="">Select your bank</option>
+                                <option>State Bank of India</option>
+                                <option>HDFC Bank</option>
+                                <option>ICICI Bank</option>
+                                <option>Axis Bank</option>
+                                <option>Kotak Mahindra Bank</option>
+                                <option>Punjab National Bank</option>
+                                <option>Other Bank</option>
+                            </select>
+                        </div>
+                        <button class="auth-btn" id="netbankingPayBtn" onclick="processGatewayPayment('netbanking')"><i class="fas fa-arrow-right-to-bracket"></i> Proceed to Bank</button>
+                    </div>
+
+                    <!-- ===== WALLET TAB ===== -->
+                    <div id="pgTab-wallet" class="pg-tab-content" style="display:none;">
+                        <h3 style="font-size:1rem;color:#0f172a;margin-bottom:0.2rem;">Pay using Wallet</h3>
+                        <p class="text-muted" style="font-size:0.8rem;margin-bottom:1rem;">Select a wallet to continue</p>
+                        <div class="auth-input-group">
+                            <label>Select Wallet</label>
+                            <select id="walletSelect">
+                                <option value="">Select wallet</option>
+                                <option>Paytm Wallet</option>
+                                <option>Amazon Pay</option>
+                                <option>Mobikwik</option>
+                                <option>FreeCharge</option>
+                            </select>
+                        </div>
+                        <button class="auth-btn" id="walletPayBtn" onclick="processGatewayPayment('wallet')"><i class="fas fa-wallet"></i> Pay with Wallet</button>
+                    </div>
+
+                    <!-- ===== PROCESSING / SUCCESS OVERLAY (inside content panel) ===== -->
+                    <div id="pgProcessingOverlay" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.97);border-radius:0 0 20px 0;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:1.5rem;">
+                        <div id="pgProcessingSpinner">
+                            <i class="fas fa-circle-notch fa-spin" style="font-size:2.4rem;color:#1e3a8a;"></i>
+                            <p style="margin-top:1rem;font-weight:600;color:#0f172a;" id="pgProcessingText">Connecting to bank...</p>
+                            <p class="text-muted" style="font-size:0.78rem;">Please do not close or refresh this window</p>
+                        </div>
+                        <div id="pgSuccessBlock" style="display:none;">
+                            <i class="fas fa-circle-check" style="font-size:2.8rem;color:#16a34a;"></i>
+                            <p style="margin-top:1rem;font-weight:700;color:#0f172a;font-size:1.05rem;">Payment Successful!</p>
+                            <p class="text-muted" style="font-size:0.82rem;margin-top:2px;" id="pgSuccessAmount">₹0 paid</p>
+                            <p class="text-muted" style="font-size:0.75rem;margin-top:6px;">Ref ID: <span id="pgSuccessTxnId">--</span></p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= DASHBOARD ================= -->
+    <div id="dashboard" class="dashboard">
+        <div class="taskbar">
+            <div class="taskbar-left">
+                <div class="logo-icon">SO</div>
+                <div class="logo-text">SOET<span>Connect</span></div>
+            </div>
+            <div class="taskbar-center">
+                <button class="taskbar-btn active" data-page="dashboard"><i class="fas fa-home"></i> Dashboard<span class="popup-circle">🏠 Home</span></button>
+                <button class="taskbar-btn student-only" data-page="placements"><i class="fas fa-briefcase"></i> Placements<span class="popup-circle">🏢 Highlights</span></button>
+                <button class="taskbar-btn student-only" data-page="assignments"><i class="fas fa-tasks"></i> Assignments<span class="popup-circle">📝 Submit</span></button>
+                <button class="taskbar-btn student-only" data-page="materials"><i class="fas fa-file-pdf"></i> Materials<span class="popup-circle">📚 Notes</span></button>
+                <button class="taskbar-btn student-only" data-page="fees"><i class="fas fa-credit-card"></i> Fees<span class="popup-circle">💰 Pay</span></button>
+                <button class="taskbar-btn student-only" data-page="results"><i class="fas fa-graduation-cap"></i> Results<span class="popup-circle">📊 Exams</span></button>
+                <button class="taskbar-btn student-only" data-page="certificates"><i class="fas fa-certificate"></i> Certificates<span class="popup-circle">📜 Download</span></button>
+                <button class="taskbar-btn student-only" data-page="helpdesk"><i class="fas fa-headset"></i> Help Desk<span class="popup-circle">🆘 Support</span></button>
+                <button class="taskbar-btn student-only" data-page="events"><i class="fas fa-calendar-check"></i> Events<span class="popup-circle">🎉 Campus</span></button>
+                <button class="taskbar-btn student-only" data-page="hostel"><i class="fas fa-hotel"></i> Hostel<span class="popup-circle">🏠 Stay</span></button>
+                <button class="taskbar-btn student-only" data-page="transport"><i class="fas fa-bus"></i> Transport<span class="popup-circle">🚌 Bus</span></button>
+                <button class="taskbar-btn student-only" data-page="calendar"><i class="fas fa-calendar-alt"></i> Calendar<span class="popup-circle">📅 Dates</span></button>
+                <button class="taskbar-btn student-only" data-page="performance"><i class="fas fa-chart-bar"></i> Performance<span class="popup-circle">📈 Tests</span></button>
+                <button class="taskbar-btn student-only" data-page="my-attendance"><i class="fas fa-clipboard-list"></i> Attendance<span class="popup-circle">📋 My %</span></button>
+                <button class="taskbar-btn student-only" data-page="qr-scan"><i class="fas fa-qrcode"></i> Scan QR<span class="popup-circle">📷 Mark Attendance</span></button>
+                <button class="taskbar-btn student-only" data-page="timetable"><i class="fas fa-calendar-alt"></i> Timetable<span class="popup-circle">📅 View</span></button>
+                
+                <!-- Faculty & Admin -->
+                <button class="taskbar-btn faculty-only" data-page="marks-entry"><i class="fas fa-pen-to-square"></i> Marks Entry<span class="popup-circle">✏️ Grade</span></button>
+                <button class="taskbar-btn faculty-only" data-page="attendance"><i class="fas fa-clipboard-check"></i> Attendance<span class="popup-circle">📋 Mark</span></button>
+                <button class="taskbar-btn faculty-only" data-page="assignment-upload"><i class="fas fa-file-arrow-up"></i> Assignments<span class="popup-circle">📤 Upload</span></button>
+                <button class="taskbar-btn faculty-only" data-page="syllabus"><i class="fas fa-book"></i> Syllabus<span class="popup-circle">📚 Track</span></button>
+                
+                <!-- Admin Only -->
+                <button class="taskbar-btn admin-only" data-page="events-manage"><i class="fas fa-calendar-plus"></i> Manage Events<span class="popup-circle">🎪 Admin</span></button>
+                <button class="taskbar-btn admin-only" data-page="timetable-manage"><i class="fas fa-calendar-alt"></i> Manage Timetable<span class="popup-circle">📅 Admin</span></button>
+                <button class="taskbar-btn admin-only" data-page="admin-panel"><i class="fas fa-user-cog"></i> Admin Panel<span class="popup-circle">⚙️ Control</span></button>
+            </div>
+            <div class="taskbar-right">
+                <div class="notif-bell-wrap">
+                    <button class="notif-bell-btn" id="notifBellBtn"><i class="fas fa-bell"></i><span class="notif-badge" id="notifBadge" style="display:none;">0</span></button>
+                    <div class="notif-dropdown" id="notifDropdown">
+                        <div class="notif-dropdown-header">
+                            <h4><i class="fas fa-bell"></i> Notifications</h4>
+                            <span id="notifMarkAllRead">Mark all read</span>
+                        </div>
+                        <div id="notifListContainer"></div>
+                    </div>
+                </div>
+                <button class="notif-bell-btn" id="profileBtn" title="Profile & Settings" onclick="navigateTo('profile')"><i class="fas fa-user-gear"></i></button>
+                <div class="user-badge">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="dashUserName">User</span>
+                    <span class="role-tag" id="dashRoleTag">ROLE</span>
+                    <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE: DASHBOARD -->
+        <div id="page-dashboard" class="page-content active">
+            <div class="welcome-block" id="welcomeBlock">
+                <h2 id="greeting">👋 Welcome back, User</h2>
+                <p id="subGreeting">Your personalized dashboard will populate as faculty and admin add data.</p>
+                <div class="stat-row">
+                    <span class="stat-chip"><i class="fas fa-calendar-check"></i> Today, OCT 24</span>
+                    <span class="stat-chip"><i class="fas fa-clock"></i> 11:30 AM · CS402</span>
+                    <span class="stat-chip"><i class="fas fa-users"></i> 12 students</span>
+                </div>
+            </div>
+
+            <div class="student-only">
+                <div class="grid-3 mb-2">
+                    <div class="feature-card" onclick="navigateTo('assignments')"><i class="fas fa-tasks"></i><h4>Assignments</h4><p id="dashAssignPendingCount">0 Pending</p></div>
+                    <div class="feature-card" onclick="navigateTo('materials')"><i class="fas fa-file-pdf"></i><h4>Study Materials</h4><p>0 New</p></div>
+                    <div class="feature-card" onclick="navigateTo('fees')"><i class="fas fa-credit-card"></i><h4>Fee Status</h4><p id="feeDashWidget">₹45,000 Due</p></div>
+                </div>
+                <div class="grid-3 mb-2">
+                    <div class="feature-card" onclick="navigateTo('results')"><i class="fas fa-graduation-cap"></i><h4>Results</h4><p>CGPA: N/A</p></div>
+                    <div class="feature-card" onclick="navigateTo('certificates')"><i class="fas fa-certificate"></i><h4>Certificates</h4><p>0 Available</p></div>
+                    <div class="feature-card" onclick="navigateTo('my-attendance')">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h4>Attendance</h4>
+                        <div id="dashAttendanceWidget">
+                            <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+                                <div id="dashAttendanceCircle" style="width:50px;height:50px;flex-shrink:0;"></div>
+                                <div style="text-align:left;">
+                                    <div id="dashAttendancePercent" style="font-size:1.2rem;font-weight:700;color:#1e3a8a;"></div>
+                                    <div id="dashAttendanceStatus" style="font-size:0.7rem;color:#64748b;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div>
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-chart-line"></i> Syllabus Velocity</h3><span class="badge-soft">0 courses</span></div>
+                        <p class="text-muted" style="text-align:center;padding:1rem 0;">No courses assigned yet.</p>
+                    </div>
+
+                    <div class="card" id="criticalAlertsCard">
+                        <div class="card-header"><h3><i class="fas fa-exclamation-triangle"></i> Critical Alerts</h3><span class="badge-soft">0</span></div>
+                        <p class="text-muted" style="text-align:center;padding:0.5rem 0;">No critical alerts.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-calendar-alt"></i> Upcoming Lectures</h3><span class="badge-soft">Today</span></div>
+                        <p class="text-muted" style="text-align:center;padding:1rem 0;">No lectures scheduled.</p>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-tasks"></i> Exam Prep Planner</h3><span class="badge-soft">0 days</span></div>
+                        <p class="text-muted" style="text-align:center;padding:1rem 0;">No exams scheduled.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STUDENT PAGES -->
+        <div id="page-placements" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-briefcase"></i> Overall Placement Highlights</h2><p>Explore recruitment statistics, top recruiters, and course-wise placement outcomes.</p></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.2rem;margin-bottom:2rem;">
+                <div class="card text-center" style="padding:1.8rem 1rem;">
+                    <h3 style="font-size:0.85rem;color:#64748b;font-weight:600;">Highest Package</h3>
+                    <h2 style="font-size:2.5rem;color:#16a34a;margin:0.5rem 0;">₹56.6 LPA</h2>
+                    <span class="badge-success">Record Offer</span>
+                </div>
+                <div class="card text-center" style="padding:1.8rem 1rem;">
+                    <h3 style="font-size:0.85rem;color:#64748b;font-weight:600;">Recruiters Visited</h3>
+                    <h2 style="font-size:2.5rem;color:#1e3a8a;margin:0.5rem 0;">800+</h2>
+                    <span class="badge-soft">Top Companies</span>
+                </div>
+                <div class="card text-center" style="padding:1.8rem 1rem;">
+                    <h3 style="font-size:0.85rem;color:#64748b;font-weight:600;">Placement Assistance</h3>
+                    <h2 style="font-size:2.2rem;color:#0f172a;margin:0.5rem 0;">100%</h2>
+                    <span class="badge-soft">Comprehensive Support</span>
+                    <p class="text-muted" style="font-size:0.75rem;margin-top:5px;">Training, Resume, Interview Prep</p>
+                </div>
+            </div>
+            <div class="grid-2" style="margin-bottom:2rem;">
+                <div class="card">
+                    <h3 style="margin-bottom:1rem;"><i class="fas fa-building" style="color:#1e3a8a;"></i> Major Recruiters</h3>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.6rem;">
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Tata Consultancy Services</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Infosys</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Wipro</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Accenture</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Deloitte</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Cognizant</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">Amazon</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">HCL Technologies</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">ICICI Bank</span>
+                        <span class="badge-soft" style="font-size:0.85rem;padding:0.4rem 1rem;background:#f1f5f9;">HDFC Bank</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom:1rem;"><i class="fas fa-chart-pie" style="color:#1e3a8a;"></i> Placement Reality</h3>
+                    <ul style="list-style:disc;padding-left:1.2rem;color:#475569;font-size:0.9rem;line-height:1.8;">
+                        <li><strong>Computer Science</strong> and <strong>MBA</strong> attract the highest recruiters and top salary offers.</li>
+                        <li>Core engineering, law, and design branches have dedicated placement drives, though less frequent than CSE.</li>
+                        <li>Top advertised package (₹56.6 LPA) is an exceptional outlier, not representative of the average.</li>
+                        <li>Offers vary widely based on skills, internships, CGPA, and interview performance.</li>
+                        <li style="margin-top:0.8rem;font-weight:600;color:#2563eb;">Focus on technical skills, projects, and internships to maximize your potential!</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3><i class="fas fa-graduation-cap" style="color:#1e3a8a;"></i> Placement by Course (Typical Outcomes)</h3></div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Course</th><th>Typical Recruiters</th><th>Expected Package (Approx.)</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>B.Tech (CSE/AI/DS/Cyber)</strong></td><td>TCS, Infosys, Accenture, Deloitte, Amazon, Cognizant</td><td><span class="badge-soft">₹4–10 LPA</span> (Top offers much higher)</td></tr>
+                            <tr><td><strong>B.Tech (ECE/Mechanical/Civil)</strong></td><td>HCL, Siemens, manufacturing & core companies</td><td><span class="badge-soft">₹3–7 LPA</span></td></tr>
+                            <tr><td><strong>BCA</strong></td><td>TCS, Infosys, Wipro, startups</td><td><span class="badge-soft">₹3–6 LPA</span></td></tr>
+                            <tr><td><strong>MCA</strong></td><td>IT companies, software firms</td><td><span class="badge-soft">₹4–8 LPA</span></td></tr>
+                            <tr><td><strong>MBA</strong></td><td>ICICI Bank, HDFC Bank, Deloitte, EY, consulting & sales</td><td><span class="badge-soft">₹4–9 LPA</span></td></tr>
+                            <tr><td><strong>BBA</strong></td><td>Banks, FMCG, sales & marketing companies</td><td><span class="badge-soft">₹3–6 LPA</span></td></tr>
+                            <tr><td><strong>B.Com</strong></td><td>Finance, accounting firms, banks</td><td><span class="badge-soft">₹3–5 LPA</span></td></tr>
+                            <tr><td><strong>BA LLB / BBA LLB</strong></td><td>Law firms, corporate legal teams</td><td><span class="badge-soft">₹4–8 LPA</span></td></tr>
+                            <tr><td><strong>Pharmacy</strong></td><td>Pharma companies, hospitals</td><td><span class="badge-soft">₹3–6 LPA</span></td></tr>
+                            <tr><td><strong>Nursing</strong></td><td>Hospitals and healthcare organizations</td><td><span class="badge-soft">₹3–6 LPA</span></td></tr>
+                            <tr><td><strong>Architecture</strong></td><td>Architecture and construction firms</td><td><span class="badge-soft">₹3–6 LPA</span></td></tr>
+                            <tr><td><strong>Design</strong></td><td>Design studios, media agencies</td><td><span class="badge-soft">₹4–7 LPA</span></td></tr>
+                            <tr><td><strong>Journalism & Mass Comm.</strong></td><td>Media houses, digital marketing agencies</td><td><span class="badge-soft">₹3–6 LPA</span></td></tr>
+                            <tr><td><strong>Hotel Management</strong></td><td>Hotels and hospitality companies</td><td><span class="badge-soft">₹3–5 LPA</span></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-assignments" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-tasks"></i> Assignments</h2><p>Submit and track your assignments</p></div>
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Title</th><th>Course</th><th>Due Date</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody id="assignmentsTableBody"><tr><td colspan="5" class="text-muted">No assignments have been uploaded yet by faculty.</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-materials" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-file-pdf"></i> Study Materials</h2><p>Access notes, slides, and resources</p></div>
+            <div class="grid-2">
+                <div class="card"><h3><i class="fas fa-file-pdf"></i> Neural Networks Notes</h3><p class="text-muted">Module 1-4 complete</p><button class="btn btn-primary mt-2" onclick="showToast('📄 Downloading...','info')"><i class="fas fa-download"></i> Download</button></div>
+                <div class="card"><h3><i class="fas fa-file-pdf"></i> DS Lecture Slides</h3><p class="text-muted">Unit 1-3</p><button class="btn btn-primary mt-2" onclick="showToast('📄 Downloading...','info')"><i class="fas fa-download"></i> Download</button></div>
+                <div class="card"><h3><i class="fas fa-file-pdf"></i> EH Lab Manual</h3><p class="text-muted">Practical Guide</p><button class="btn btn-primary mt-2" onclick="showToast('📄 Downloading...','info')"><i class="fas fa-download"></i> Download</button></div>
+                <div class="card"><h3><i class="fas fa-file-pdf"></i> CD Reference Book</h3><p class="text-muted">Full PDF</p><button class="btn btn-primary mt-2" onclick="showToast('📄 Downloading...','info')"><i class="fas fa-download"></i> Download</button></div>
+            </div>
+        </div>
+
+        <div id="page-fees" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-credit-card"></i> Fee Management</h2><p>View and pay your fees</p></div>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Total Due</h3>
+                    <h2 id="feeTotalDueAmount" style="color:#dc2626;font-size:2rem;">₹45,000</h2>
+                    <p class="text-muted" id="feeDueDateText">Due Date: Nov 15, 2026</p>
+                    <div id="feeDueBreakup" class="text-muted" style="font-size:0.78rem;margin-top:2px;"></div>
+                    <button class="btn btn-primary mt-2" id="payFeesBtn" onclick="openFeePaymentModal()"><i class="fas fa-credit-card"></i> Pay Now</button>
+                </div>
+                <div class="card"><h3>Payment History</h3>
+                    <div id="feePaymentHistoryList">
+                        <div class="progress-item"><span>No payment history yet.</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== FEE STRUCTURE & BREAKDOWN ===== -->
+            <div class="card mt-2">
+                <div class="card-header">
+                    <h3><i class="fas fa-layer-group"></i> Fee Structure &amp; Breakdown</h3>
+                    <span class="badge-soft" id="feeHeadCount">0 heads</span>
+                </div>
+
+                <div class="fee-category-tiles" id="feeCategoryTiles">
+                    <div class="fee-cat-tile active" data-cat="all" onclick="selectFeeCategory('all')">
+                        <i class="fas fa-layer-group"></i><span>All Fees</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="academic" onclick="selectFeeCategory('academic')">
+                        <i class="fas fa-graduation-cap"></i><span>Academic</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="hostel" onclick="selectFeeCategory('hostel')">
+                        <i class="fas fa-hotel"></i><span>Hostel</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="transport" onclick="selectFeeCategory('transport')">
+                        <i class="fas fa-bus"></i><span>Transport</span>
+                    </div>
+                    <div class="fee-cat-tile" data-cat="misc" onclick="selectFeeCategory('misc')">
+                        <i class="fas fa-receipt"></i><span>Miscellaneous</span>
+                    </div>
+                </div>
+
+                <div class="fee-summary-strip" id="feeSummaryStrip"></div>
+
+                <div class="table-container" style="margin-top:1rem;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width:36px;"><input type="checkbox" id="feeSelectAllCheckbox" onchange="toggleSelectAllFeeHeads(this.checked)" /></th>
+                                <th>#</th><th>Session</th><th>Category</th><th>Head Name</th><th style="text-align:right;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="feeHeadsTableBody">
+                            <tr><td colspan="6" class="text-muted">Loading fee structure...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="fee-select-bar" id="feeSelectBar">
+                    <div>
+                        <div class="text-muted" style="font-size:0.75rem;">You want to pay</div>
+                        <div id="feeSelectedAmount" style="font-size:1.3rem;font-weight:700;color:#1e3a8a;">₹0</div>
+                        <div class="text-muted" id="feeSelectedCount" style="font-size:0.72rem;">No fee heads selected</div>
+                    </div>
+                    <button class="btn btn-primary" id="paySelectedFeesBtn" onclick="paySelectedFeeHeads()" disabled style="opacity:0.5;cursor:default;">
+                        <i class="fas fa-credit-card"></i> Pay Selected Amount
+                    </button>
+                </div>
+
+                <p class="text-muted" style="font-size:0.75rem;margin-top:0.8rem;">
+                    <i class="fas fa-circle-info"></i> Tick the fee heads you want to pay, or use "Pay Now" above to pay your full outstanding due. For discrepancies, please contact the accounts office.
+                </p>
+            </div>
+
+            <div id="ree-fee-section" style="margin-top:1.5rem;"></div>
+            <div id="debar-fee-section" style="margin-top:1.5rem;"></div>
+        </div>
+
+        <div id="page-results" class="page-content">
+            <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+                <div><h2><i class="fas fa-graduation-cap"></i> Examination Results</h2><p>View your academic performance</p></div>
+                <button class="btn btn-primary" id="downloadResultBtn"><i class="fas fa-download"></i> Download Result</button>
+            </div>
+            <div class="grid-2">
+                <div class="card text-center"><h3>Current CGPA</h3><h2 style="font-size:3rem;color:#1e3a8a;">N/A</h2><p class="text-muted">/ 10.0</p></div>
+                <div class="card"><h3>Subject-wise Grades</h3>
+                    <p class="text-muted" style="text-align:center;padding:1rem 0;">No results available yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-my-attendance" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-clipboard-list"></i> My Attendance</h2><p>Track your semester-wise attendance and daily log</p></div>
+            <div id="myTodayAttendanceBanner"></div>
+            <div class="sem-tabs" style="display:flex;gap:0.5rem;flex-wrap:wrap;background:white;padding:0.5rem;border-radius:60px;border:1px solid #eaf0fa;margin-bottom:1.3rem;width:fit-content;">
+                <button onclick="switchAttSem(1)" id="att-sem-tab-1" class="att-sem-tab-btn">Sem I</button>
+                <button onclick="switchAttSem(2)" id="att-sem-tab-2" class="att-sem-tab-btn">Sem II</button>
+                <button onclick="switchAttSem(3)" id="att-sem-tab-3" class="att-sem-tab-btn">Sem III</button>
+                <button onclick="switchAttSem(4)" id="att-sem-tab-4" class="att-sem-tab-btn">Sem IV</button>
+                <button onclick="switchAttSem(5)" id="att-sem-tab-5" class="att-sem-tab-btn">Sem V</button>
+                <button onclick="switchAttSem(6)" id="att-sem-tab-6" class="att-sem-tab-btn active">Sem VI</button>
+            </div>
+            <div class="att-stat-grid" id="attStatGrid"></div>
+            <div class="att-overview-card">
+                <div class="att-donut" id="attDonutWrap"></div>
+                <div class="att-trend-mini">
+                    <h4 id="attTrendTitle"><i class="fas fa-chart-line" style="color:#1e3a8a;"></i> Monthly Attendance Trend</h4>
+                    <div class="att-trend-bars" id="attTrendBars"></div>
+                </div>
+            </div>
+            <div class="card mb-2">
+                <div class="card-header"><h3><i class="fas fa-layer-group"></i> Subject-wise Attendance</h3><span class="badge-soft">Min. required: 75%</span></div>
+                <div id="myAttendanceList" style="margin-top:0.8rem;"></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3><i class="fas fa-calendar-days"></i> Daily Attendance Calendar</h3></div>
+                <div class="cal-controls">
+                    <div class="cal-view-toggle">
+                        <button class="cal-view-btn active" id="calViewMonthBtn" onclick="setAttCalView('month')">Month</button>
+                        <button class="cal-view-btn" id="calViewWeekBtn" onclick="setAttCalView('week')">Week</button>
+                    </div>
+                    <div class="cal-nav">
+                        <button class="cal-nav-btn" onclick="navAttCal(-1)"><i class="fas fa-chevron-left"></i></button>
+                        <span class="cal-nav-label" id="attCalMonthLabel">This Month</span>
+                        <button class="cal-nav-btn" onclick="navAttCal(1)"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="attCalendarGrid" style="margin-top:0.8rem;"></div>
+                <div class="cal-legend">
+                    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#16a34a;"></span> Present</div>
+                    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#dc2626;"></span> Absent</div>
+                    <div class="cal-legend-item"><span class="cal-legend-dot" style="background:#e2e8f0;"></span> Weekend / Holiday</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE: SCAN QR (STUDENT ATTENDANCE) -->
+        <div id="page-qr-scan" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-qrcode"></i> Scan QR for Attendance</h2><p>Scan the QR code shared by your faculty to mark today's attendance</p></div>
+            <div class="grid-2">
+                <div class="card">
+                    <div class="qr-scan-box">
+                        <div class="qr-scan-video-wrap" id="qrScanVideoWrap" style="display:none;">
+                            <video id="qrScanVideo" playsinline autoplay muted></video>
+                            <div class="qr-scan-frame"></div>
+                        </div>
+                        <div class="qr-scan-placeholder" id="qrScanPlaceholder">
+                            <i class="fas fa-qrcode"></i>
+                            <p class="text-muted">Tap "Start Scanning" and point your camera at the QR code shown by your faculty.</p>
+                        </div>
+                        <canvas id="qrScanCanvas" style="display:none;"></canvas>
+                        <div id="qrScanStatus" class="qr-scan-status"></div>
+                        <div class="flex mt-2" style="justify-content:center;flex-wrap:wrap;gap:0.6rem;">
+                            <button class="btn btn-primary" id="qrScanStartBtn" onclick="startQrScan()"><i class="fas fa-camera"></i> Start Scanning</button>
+                            <button class="btn btn-outline" id="qrScanStopBtn" onclick="stopQrScan()" style="display:none;"><i class="fas fa-stop"></i> Stop</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="card">
+                        <h3><i class="fas fa-keyboard"></i> Enter Code Manually</h3>
+                        <p class="text-muted" style="font-size:0.82rem;margin-bottom:0.8rem;">No camera access? Ask your faculty for the session code and enter it below.</p>
+                        <div class="auth-input-group">
+                            <label>Session Code</label>
+                            <input type="text" id="qrManualCode" class="input-slim" style="width:100%;" placeholder="e.g. SOET-XXXXXX">
+                        </div>
+                        <button class="btn btn-primary" id="qrManualSubmitBtn" onclick="submitManualQrCode()" style="width:100%;justify-content:center;"><i class="fas fa-check"></i> Mark Attendance</button>
+                    </div>
+                    <div class="card mt-2">
+                        <h3><i class="fas fa-circle-info"></i> How it works</h3>
+                        <ul style="list-style:disc;padding-left:1.3rem;color:#475569;line-height:1.9;font-size:0.85rem;">
+                            <li>Your faculty generates a QR session for the class.</li>
+                            <li>Scan it (or enter the code manually) within the session's validity window.</li>
+                            <li>Your attendance is marked instantly and reflects in "My Attendance" and on your faculty's dashboard.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-certificates" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-certificate"></i> Certificates</h2><p>Download your academic certificates</p></div>
+            <div class="grid-2">
+                <div class="card"><h3><i class="fas fa-certificate" style="color:#f59e0b;"></i> Provisional Certificate</h3><p class="text-muted">Not available yet</p><button class="btn btn-primary mt-2" onclick="showToast('📜 No certificate available yet.','info')"><i class="fas fa-download"></i> Download</button></div>
+                <div class="card"><h3><i class="fas fa-certificate" style="color:#f59e0b;"></i> Transcript</h3><p class="text-muted">Not available yet</p><button class="btn btn-primary mt-2" onclick="showToast('📜 No transcript available yet.','info')"><i class="fas fa-download"></i> Download</button></div>
+            </div>
+        </div>
+
+        <div id="page-helpdesk" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-headset"></i> Help Desk</h2><p>Get support from our team</p></div>
+            <div class="grid-2">
+                <div class="card"><h3><i class="fas fa-envelope"></i> Email Support</h3><p class="text-muted">support@krmangalam.edu</p><input type="text" class="input-slim-dark" placeholder="Your message..." style="margin-top:0.5rem;"><button class="btn btn-primary mt-2" onclick="showToast('📧 Support ticket created!','success')"><i class="fas fa-paper-plane"></i> Send</button></div>
+                <div class="card"><h3><i class="fas fa-phone"></i> Contact</h3><p><i class="fas fa-phone"></i> +91-123-456-7890</p><p><i class="fas fa-clock"></i> 9:00 AM - 5:00 PM</p><p><i class="fas fa-map-marker-alt"></i> Admin Block, Ground Floor</p></div>
+            </div>
+        </div>
+
+        <div id="page-events" class="page-content">
+            <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+                <div>
+                    <h2><i class="fas fa-calendar-check"></i> Campus Events</h2>
+                    <p>Stay updated with university events</p>
+                </div>
+                <span id="myRegisteredEventsBadge" class="badge-soft" style="display:none;">My Registrations</span>
+            </div>
+
+            <div id="facultyEventsSection" class="admin-only" style="display:none;">
+                <div class="card" style="margin-bottom:1.8rem;border:1px solid #c7d7fb;background:linear-gradient(135deg,#f5f8ff,#ffffff);">
+                    <div class="card-header">
+                        <h3><i class="fas fa-plus-circle" style="color:#1e3a8a;"></i> Create New Event</h3>
+                        <span class="badge-soft" style="background:#dc2626;color:white;">Admin Only</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:0.5rem;">
+                        <div class="auth-input-group">
+                            <label>Event Title *</label>
+                            <input type="text" id="facEventTitle" class="input-slim" style="width:100%;" placeholder="e.g. Hackathon 2026">
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Event Type *</label>
+                            <select id="facEventType" class="input-slim" style="width:100%;">
+                                <option value="Hackathon">Hackathon</option>
+                                <option value="Guest Lecture">Guest Lecture</option>
+                                <option value="Workshop">Workshop</option>
+                                <option value="Sports Meet">Sports Meet</option>
+                                <option value="Cultural Fest">Cultural Fest</option>
+                                <option value="Seminar">Seminar</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Date *</label>
+                            <input type="date" id="facEventDate" class="input-slim" style="width:100%;">
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Time *</label>
+                            <input type="time" id="facEventTime" class="input-slim" style="width:100%;">
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Venue *</label>
+                            <input type="text" id="facEventVenue" class="input-slim" style="width:100%;" placeholder="e.g. Main Auditorium">
+                        </div>
+                        <div class="auth-input-group">
+                            <label>Max Capacity (optional)</label>
+                            <input type="number" id="facEventCapacity" class="input-slim" style="width:100%;" placeholder="e.g. 200" min="1">
+                        </div>
+                        <div class="auth-input-group" style="grid-column: span 2;">
+                            <label>Description *</label>
+                            <textarea id="facEventDesc" class="input-slim" style="width:100%;min-height:80px;" placeholder="Describe the event details..."></textarea>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="facEventCreateBtn" style="margin-top:0.5rem;width:100%;justify-content:center;">
+                        <i class="fas fa-calendar-plus"></i> Create Event
+                    </button>
+                </div>
+            </div>
+
+            <div id="eventsListContainer">
+                <div class="grid-2" id="eventsGrid"></div>
+            </div>
+
+            <div id="myRegisteredEventsContainer" class="student-only" style="margin-top:2rem;display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-list-check"></i> My Registered Events</h3>
+                        <span class="badge-soft" id="myRegCount">0</span>
+                    </div>
+                    <div id="myRegisteredEventsList">
+                        <p class="text-muted">You haven't registered for any events yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="facultyMyEventsContainer" class="faculty-only" style="margin-top:2rem;display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-list-check"></i> My Created Events & Registrations</h3>
+                        <span class="badge-soft" id="facMyEventCount">0</span>
+                    </div>
+                    <div id="facultyMyEventsList">
+                        <p class="text-muted">You haven't created any events yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-hostel" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-hotel"></i> Hostel Management</h2><p>Manage your hostel accommodation</p></div>
+            <div class="grid-2">
+                <div class="card"><h3><i class="fas fa-bed"></i> Room Details</h3><p><strong>Block:</strong> A</p><p><strong>Room:</strong> 204</p><p><strong>Type:</strong> Double Sharing</p><span class="badge-success">● Active</span><button class="btn btn-outline mt-2">View Details</button></div>
+                <div class="card"><h3><i class="fas fa-wallet"></i> Hostel Fees</h3><p><strong>Due:</strong> ₹35,000</p><p><strong>Paid:</strong> ₹70,000</p><p><strong>Status:</strong> <span class="badge-soft">Partially Paid</span></p><button class="btn btn-primary mt-2" onclick="showToast('💳 Payment initiated!','success')"><i class="fas fa-credit-card"></i> Pay Now</button></div>
+            </div>
+        </div>
+
+        <div id="page-transport" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-bus"></i> Transport Facility</h2><p>Bus routes and schedules</p></div>
+            <div class="grid-2">
+                <div class="card"><h3><i class="fas fa-bus"></i> Your Route</h3><p><strong>Route:</strong> R-12 (Gurugram City)</p><p><strong>Pickup:</strong> 7:30 AM</p><p><strong>Drop:</strong> 5:30 PM</p><span class="badge-success">● Active</span><button class="btn btn-outline mt-2">View Timetable</button></div>
+                <div class="card"><h3><i class="fas fa-map"></i> Available Routes</h3>
+                    <div class="progress-item"><span>R-10: Delhi</span><span class="badge-soft">7:00 AM</span></div>
+                    <div class="progress-item"><span>R-12: Gurugram</span><span class="badge-success">● Active</span></div>
+                    <div class="progress-item"><span>R-15: Noida</span><span class="badge-soft">6:45 AM</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-calendar" class="page-content">
+            <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+                <div><h2><i class="fas fa-calendar-alt"></i> Academic Calendar</h2><p>Important dates and deadlines</p></div>
+                <button class="btn btn-primary" onclick="openAcademicCalendarPDF()"><i class="fas fa-file-pdf"></i> View Full Academic Calendar (PDF)</button>
+            </div>
+            <div class="card">
+                <div class="calendar-grid">
+                    <div class="cal-header">Sun</div><div class="cal-header">Mon</div><div class="cal-header">Tue</div>
+                    <div class="cal-header">Wed</div><div class="cal-header">Thu</div><div class="cal-header">Fri</div><div class="cal-header">Sat</div>
+                    <div class="cal-day weekend">1</div><div class="cal-day">2</div><div class="cal-day">3</div>
+                    <div class="cal-day">4</div><div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day weekend">7</div>
+                    <div class="cal-day weekend">8</div><div class="cal-day">9</div><div class="cal-day">10</div>
+                    <div class="cal-day event" onclick="showToast('📅 Exam: DS - Oct 12','info')">11</div>
+                    <div class="cal-day event" onclick="showToast('📅 Exam: NN - Oct 13','info')">12</div>
+                    <div class="cal-day active">13</div>
+                    <div class="cal-day weekend">14</div>
+                    <div class="cal-day weekend">15</div><div class="cal-day">16</div><div class="cal-day">17</div>
+                    <div class="cal-day">18</div><div class="cal-day">19</div><div class="cal-day">20</div>
+                    <div class="cal-day">21</div><div class="cal-day">22</div><div class="cal-day">23</div>
+                    <div class="cal-day">24</div><div class="cal-day">25</div><div class="cal-day">26</div>
+                    <div class="cal-day">27</div><div class="cal-day">28</div><div class="cal-day">29</div>
+                    <div class="cal-day">30</div><div class="cal-day">31</div>
+                </div>
+                <div class="flex mt-2"><span class="badge-soft">📅 Event: Exam - Oct 11-13</span><span class="badge-soft" style="margin-left:0.5rem;">📌 Today: Oct 13</span></div>
+                <div id="ree-calendar-notice"></div>
+            </div>
+        </div>
+
+        <div id="page-performance" class="page-content">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.8rem;">
+                <div>
+                    <h2 style="font-size:1.7rem;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:10px;">
+                        <span style="width:42px;height:42px;background:linear-gradient(135deg,#1e3a8a,#2563eb);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;">
+                            <i class="fas fa-chart-line" style="color:white;font-size:1rem;"></i>
+                        </span>
+                        Academic Performance
+                    </h2>
+                    <p style="color:#64748b;margin-top:4px;font-size:0.9rem;">B.Tech CSE (AI &amp; ML) · Current: Semester VI · Session 2025–26</p>
+                </div>
+                <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+                    <span style="background:#dbeafe;color:#1e3a8a;padding:0.35rem 1rem;border-radius:40px;font-size:0.78rem;font-weight:600;display:flex;align-items:center;gap:5px;"><i class="fas fa-user-graduate"></i> Roll No: 2210310</span>
+                    <span style="background:#fee2e2;color:#dc2626;padding:0.35rem 1rem;border-radius:40px;font-size:0.78rem;font-weight:600;display:flex;align-items:center;gap:5px;"><i class="fas fa-star"></i> CGPA: N/A</span>
+                </div>
+            </div>
+
+            <div class="card" id="facultyMarksUpdateCard" style="margin-bottom:1.8rem;display:none;border:1px solid #c7d7fb;background:linear-gradient(135deg,#f5f8ff,#ffffff);">
+                <div class="card-header"><h3><i class="fas fa-bolt" style="color:#1e3a8a;"></i> Live Updates from Faculty</h3><span class="badge-soft" id="facultyMarksUpdateCount">0</span></div>
+                <p class="text-muted" style="margin-top:-0.3rem;margin-bottom:0.8rem;font-size:0.82rem;">Marks recently entered by your faculty appear here instantly.</p>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Subject</th><th>Marks</th><th>Grade</th></tr></thead>
+                        <tbody id="facultyMarksUpdateBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;margin-bottom:1.8rem;">
+                <div style="background:white;border-radius:20px;padding:1.2rem 1.4rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;gap:1rem;">
+                    <div style="width:44px;height:44px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-trophy" style="color:#1e3a8a;"></i></div>
+                    <div><div style="font-size:1.5rem;font-weight:800;color:#dc2626;">N/A</div><div style="font-size:0.72rem;color:#64748b;font-weight:500;">Overall CGPA</div></div>
+                </div>
+                <div style="background:white;border-radius:20px;padding:1.2rem 1.4rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;gap:1rem;">
+                    <div style="width:44px;height:44px;background:linear-gradient(135deg,#dcfce7,#bbf7d0);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-arrow-trend-up" style="color:#16a34a;"></i></div>
+                    <div><div style="font-size:1.5rem;font-weight:800;color:#0f172a;">N/A</div><div style="font-size:0.72rem;color:#64748b;font-weight:500;">Best SGPA</div></div>
+                </div>
+                <div style="background:white;border-radius:20px;padding:1.2rem 1.4rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;gap:1rem;">
+                    <div style="width:44px;height:44px;background:linear-gradient(135deg,#fef9c3,#fde68a);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-medal" style="color:#b45309;"></i></div>
+                    <div><div style="font-size:1.5rem;font-weight:800;color:#0f172a;">N/A</div><div style="font-size:0.72rem;color:#64748b;font-weight:500;">Dept. Rank</div></div>
+                </div>
+                <div style="background:white;border-radius:20px;padding:1.2rem 1.4rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.04);display:flex;align-items:center;gap:1rem;">
+                    <div style="width:44px;height:44px;background:linear-gradient(135deg,#fce7f3,#fbcfe8);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-book-open" style="color:#be185d;"></i></div>
+                    <div><div style="font-size:1.5rem;font-weight:800;color:#0f172a;">0</div><div style="font-size:0.72rem;color:#64748b;font-weight:500;">Semesters Done</div></div>
+                </div>
+            </div>
+
+            <div style="background:white;border-radius:22px;padding:1.6rem;border:1px solid #eaf0fa;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:1.8rem;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.4rem;">
+                    <div>
+                        <div style="font-weight:700;font-size:1rem;color:#0f172a;">SGPA Trend — All Semesters</div>
+                        <div style="font-size:0.75rem;color:#94a3b8;margin-top:3px;">Semester-wise grade point average</div>
+                    </div>
+                    <span style="background:#dbeafe;color:#1e3a8a;font-size:0.72rem;font-weight:600;padding:0.3rem 0.8rem;border-radius:40px;">Sem I – Sem VI</span>
+                </div>
+                <div style="position:relative;height:200px;">
+                    <div style="position:absolute;left:0;top:0;height:100%;display:flex;flex-direction:column;justify-content:space-between;font-size:0.65rem;color:#cbd5e1;width:28px;text-align:right;">
+                        <span>10</span><span>9</span><span>8</span><span>7</span><span>6</span>
+                    </div>
+                    <div style="position:absolute;left:34px;right:0;top:0;height:100%;">
+                        <div style="position:absolute;top:0%;width:100%;border-top:1px dashed #f1f5f9;"></div>
+                        <div style="position:absolute;top:25%;width:100%;border-top:1px dashed #f1f5f9;"></div>
+                        <div style="position:absolute;top:50%;width:100%;border-top:1px dashed #f1f5f9;"></div>
+                        <div style="position:absolute;top:75%;width:100%;border-top:1px dashed #f1f5f9;"></div>
+                        <div style="position:absolute;top:100%;width:100%;border-top:1px solid #e2e8f0;"></div>
+                    </div>
+                    <div style="position:absolute;left:34px;right:0;top:0;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.9rem;">
+                        <p style="text-align:center;">No performance data available yet.<br><span style="font-size:0.75rem;">Marks will appear here once faculty adds them.</span></p>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-around;padding-left:34px;margin-top:0.6rem;">
+                    <div style="text-align:center;font-size:0.72rem;color:#94a3b8;font-weight:600;cursor:pointer;" onclick="switchSem(1)">Sem I<br><span style="color:#cbd5e1;">2023</span></div>
+                    <div style="text-align:center;font-size:0.72rem;color:#94a3b8;font-weight:600;cursor:pointer;" onclick="switchSem(2)">Sem II<br><span style="color:#cbd5e1;">2023</span></div>
+                    <div style="text-align:center;font-size:0.72rem;color:#94a3b8;font-weight:600;cursor:pointer;" onclick="switchSem(3)">Sem III<br><span style="color:#cbd5e1;">2024</span></div>
+                    <div style="text-align:center;font-size:0.72rem;color:#94a3b8;font-weight:600;cursor:pointer;" onclick="switchSem(4)">Sem IV<br><span style="color:#cbd5e1;">2024</span></div>
+                    <div style="text-align:center;font-size:0.72rem;color:#94a3b8;font-weight:600;cursor:pointer;" onclick="switchSem(5)">Sem V<br><span style="color:#cbd5e1;">2025</span></div>
+                    <div style="text-align:center;font-size:0.72rem;color:#94a3b8;font-weight:600;cursor:pointer;" onclick="switchSem(6)">Sem VI<br><span style="color:#cbd5e1;">2026</span></div>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.5rem;padding:5px;background:#f1f5f9;border-radius:40px;width:fit-content;">
+                <button onclick="switchSem(1)" id="sem-tab-1" class="sem-tab-btn" style="background:#1e3a8a;color:white;border:none;padding:0.4rem 1rem;border-radius:40px;font-weight:600;cursor:pointer;font-size:0.8rem;transition:all 0.2s;">Sem I</button>
+                <button onclick="switchSem(2)" id="sem-tab-2" class="sem-tab-btn" style="background:transparent;color:#475569;border:none;padding:0.4rem 1rem;border-radius:40px;font-weight:500;cursor:pointer;font-size:0.8rem;transition:all 0.2s;">Sem II</button>
+                <button onclick="switchSem(3)" id="sem-tab-3" class="sem-tab-btn" style="background:transparent;color:#475569;border:none;padding:0.4rem 1rem;border-radius:40px;font-weight:500;cursor:pointer;font-size:0.8rem;transition:all 0.2s;">Sem III</button>
+                <button onclick="switchSem(4)" id="sem-tab-4" class="sem-tab-btn" style="background:transparent;color:#475569;border:none;padding:0.4rem 1rem;border-radius:40px;font-weight:500;cursor:pointer;font-size:0.8rem;transition:all 0.2s;">Sem IV</button>
+                <button onclick="switchSem(5)" id="sem-tab-5" class="sem-tab-btn" style="background:transparent;color:#475569;border:none;padding:0.4rem 1rem;border-radius:40px;font-weight:500;cursor:pointer;font-size:0.8rem;transition:all 0.2s;">Sem V</button>
+                <button onclick="switchSem(6)" id="sem-tab-6" class="sem-tab-btn" style="background:transparent;color:#475569;border:none;padding:0.4rem 1rem;border-radius:40px;font-weight:500;cursor:pointer;font-size:0.8rem;transition:all 0.2s;">Sem VI</button>
+            </div>
+
+            <div id="sem-detail-panel"></div>
+        </div>
+
+        <!-- FACULTY PAGES -->
+        <div id="page-attendance" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-clipboard-check"></i> Attendance Marking</h2><p>Mark attendance for today's classes</p></div>
+            <div class="att-stat-grid" id="facAttStatGrid"></div>
+            <div class="card">
+                <h3 style="margin-bottom:1rem;">CS402 - Distributed Systems <span class="badge-soft">11:30 AM</span></h3>
+                <div class="flex" style="gap:0.6rem;margin-bottom:1rem;flex-wrap:wrap;">
+                    <input type="text" id="facAddName" class="input-slim" style="flex:1;min-width:140px;" placeholder="Student Name">
+                    <input type="text" id="facAddRoll" class="input-slim" style="flex:1;min-width:140px;" placeholder="Roll No. e.g. 2024CSE001">
+                    <button class="btn btn-outline" id="facAddStudentBtn"><i class="fas fa-user-plus"></i> Add Student</button>
+                </div>
+                <div class="student-grid" id="facStudentChips" style="grid-template-columns: repeat(6,1fr);"></div>
+                <div class="flex mt-2">
+                    <button class="btn btn-primary" onclick="markAllPresent()"><i class="fas fa-check-double"></i> Mark All Present</button>
+                    <button class="btn btn-outline" onclick="saveAttendance()"><i class="fas fa-save"></i> Save Attendance</button>
+                    <span class="badge-soft" style="margin-left:auto;">Present: <span id="presentCount">0</span>/<span id="presentTotal">0</span></span>
+                </div>
+            </div>
+
+            <div class="card mt-2">
+                <div class="card-header"><h3><i class="fas fa-qrcode"></i> Generate QR Session</h3><span class="badge-soft" id="facQrStatusBadge">● Inactive</span></div>
+                <div class="grid-2">
+                    <div class="qr-display">
+                        <div class="qr-code" id="facQrCodeContainer"><i class="fas fa-qrcode"></i></div>
+                        <h3 id="facQrSubjectLabel">No active session</h3>
+                        <p style="color:#475569;" id="facQrTimeLabel">Click "Generate" to start a QR session</p>
+                        <div class="flex mt-2" style="justify-content:center;">
+                            <button class="btn btn-primary" onclick="generateQR()"><i class="fas fa-sync-alt"></i> Generate</button>
+                            <button class="btn btn-outline" id="facQrDownloadBtn" onclick="downloadFacQr()"><i class="fas fa-download"></i> Download</button>
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Session Students <span class="badge-soft" id="facQrScannedCount">0</span></h3>
+                        <div class="student-grid" style="grid-template-columns: repeat(3,1fr);" id="facQrSessionStudents">
+                            <p class="text-muted" style="grid-column:1/-1;text-align:center;padding:0.5rem 0;">No students in this session yet.</p>
+                        </div>
+                        <div class="flex mt-2"><button class="btn btn-outline"><i class="fas fa-user-plus"></i> Add Student</button><button class="btn btn-outline"><i class="fas fa-user-minus"></i> Remove</button></div>
+                    </div>
+                </div>
+                <div class="card mt-2"><h3>Session History</h3>
+                    <div class="progress-item"><span>CS402 · 11:30 AM</span><span class="badge-soft">0 present</span></div>
+                    <div class="progress-item"><span>CS310 · 02:00 PM</span><span class="badge-soft">0 present</span></div>
+                    <div class="progress-item"><span>CS201 · 09:00 AM</span><span class="badge-soft">0 present</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-marks-entry" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-pen-to-square"></i> Marks Entry</h2><p>Add or update student marks for a subject</p></div>
+            <div class="grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom:1rem;">Add Marks</h3>
+                    <div class="auth-input-group">
+                        <label>Student Name</label>
+                        <input type="text" id="meStudentName" class="input-slim" style="width:100%;" placeholder="e.g. Ishani Rao">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Roll No.</label>
+                        <input type="text" id="meRollNo" class="input-slim" style="width:100%;" placeholder="e.g. 2024CSE001">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Subject</label>
+                        <select id="meSubject" class="input-slim" style="width:100%;">
+                            <option>Distributed Systems</option>
+                            <option>Data Structures</option>
+                            <option>Neural Networks</option>
+                            <option>Ethical Hacking</option>
+                            <option>Compiler Design</option>
+                        </select>
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Marks (out of 100)</label>
+                        <input type="number" id="meMarks" class="input-slim" style="width:100%;" min="0" max="100" placeholder="e.g. 85">
+                    </div>
+                    <button class="btn btn-primary" id="meSubmitBtn" style="width:100%;justify-content:center;"><i class="fas fa-plus"></i> Add Marks Entry</button>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-list-check"></i> Recent Entries</h3><span class="badge-soft" id="meCount">0</span></div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Student</th><th>Roll No</th><th>Subject</th><th>Marks</th><th>Grade</th><th></th></tr></thead>
+                            <tbody id="meTableBody"><tr><td colspan="5" class="text-muted">No entries yet. Add marks using the form.</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-syllabus" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-book"></i> Syllabus Tracker</h2><p>Track your course progress</p></div>
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Distributed Systems</h3>
+                    <div class="progress-item"><span>Unit 1: Introduction</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 2: Communication</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 3: Synchronization</span><span>80%</span><div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div></div>
+                    <div class="progress-item"><span>Unit 4: Replication</span><span>60%</span><div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div></div>
+                    <div class="progress-item"><span>Unit 5: Fault Tolerance</span><span>40%</span><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div></div>
+                    <div class="flex mt-2"><span class="badge-soft">Overall: 75%</span></div>
+                </div>
+                <div class="card">
+                    <h3>Data Structures</h3>
+                    <div class="progress-item"><span>Unit 1: Arrays</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 2: Linked Lists</span><span>80%</span><div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div></div>
+                    <div class="progress-item"><span>Unit 3: Stacks & Queues</span><span>60%</span><div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div></div>
+                    <div class="progress-item"><span>Unit 4: Trees</span><span>20%</span><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div>
+                    <div class="progress-item"><span>Unit 5: Graphs</span><span>0%</span><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div></div>
+                    <div class="flex mt-2"><span class="badge-soft">Overall: 32%</span></div>
+                </div>
+            </div>
+            <div class="grid-2" style="margin-top: 1.8rem;">
+                <div class="card">
+                    <h3>Neural Networks</h3>
+                    <div class="progress-item"><span>Unit 1: Basics of ANN</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 2: Activation Functions</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 3: Backpropagation</span><span>80%</span><div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div></div>
+                    <div class="progress-item"><span>Unit 4: CNNs</span><span>60%</span><div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div></div>
+                    <div class="progress-item"><span>Unit 5: RNNs & LSTMs</span><span>40%</span><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div></div>
+                    <div class="flex mt-2"><span class="badge-soft">Overall: 85%</span></div>
+                </div>
+                <div class="card">
+                    <h3>Compiler Design</h3>
+                    <div class="progress-item"><span>Unit 1: Lexical Analysis</span><span>80%</span><div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div></div>
+                    <div class="progress-item"><span>Unit 2: Syntax Analysis</span><span>60%</span><div class="progress-bar"><div class="progress-fill" style="width:60%"></div></div></div>
+                    <div class="progress-item"><span>Unit 3: Semantic Analysis</span><span>30%</span><div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div></div>
+                    <div class="progress-item"><span>Unit 4: Code Generation</span><span>10%</span><div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div></div>
+                    <div class="progress-item"><span>Unit 5: Optimization</span><span>0%</span><div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div></div>
+                    <div class="flex mt-2"><span class="badge-soft">Overall: 42%</span></div>
+                </div>
+            </div>
+            <div class="grid-2" style="margin-top: 1.8rem;">
+                <div class="card">
+                    <h3>Ethical Hacking</h3>
+                    <div class="progress-item"><span>Unit 1: Intro to Cyber Security</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 2: Footprinting</span><span>90%</span><div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div></div>
+                    <div class="progress-item"><span>Unit 3: Scanning & Enumeration</span><span>70%</span><div class="progress-bar"><div class="progress-fill" style="width:70%"></div></div></div>
+                    <div class="progress-item"><span>Unit 4: System Hacking</span><span>40%</span><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div></div>
+                    <div class="progress-item"><span>Unit 5: Web Application Attacks</span><span>20%</span><div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div></div>
+                    <div class="flex mt-2"><span class="badge-soft">Overall: 68%</span></div>
+                </div>
+                <div class="card">
+                    <h3>Database Systems</h3>
+                    <div class="progress-item"><span>Unit 1: ER Diagrams</span><span>100%</span><div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div></div>
+                    <div class="progress-item"><span>Unit 2: Relational Algebra</span><span>90%</span><div class="progress-bar"><div class="progress-fill" style="width:90%"></div></div></div>
+                    <div class="progress-item"><span>Unit 3: SQL Queries</span><span>75%</span><div class="progress-bar"><div class="progress-fill" style="width:75%"></div></div></div>
+                    <div class="progress-item"><span>Unit 4: Normalization</span><span>40%</span><div class="progress-bar"><div class="progress-fill" style="width:40%"></div></div></div>
+                    <div class="progress-item"><span>Unit 5: Transaction Management</span><span>10%</span><div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div></div>
+                    <div class="flex mt-2"><span class="badge-soft">Overall: 60%</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TIMETABLE PAGE (Student View) ================= -->
+        <div id="page-timetable" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-calendar-alt"></i> Timetable</h2><p>Weekly schedule</p></div>
+            <div class="card">
+                <div class="table-container" id="studentTimetableContainer">
+                    <table>
+                        <thead><tr><th>Time</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th></tr></thead>
+                        <tbody id="studentTimetableBody"></tbody>
+                    </table>
+                </div>
+                <div class="flex mt-2">
+                    <button class="btn btn-outline"><i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-outline"><i class="fas fa-download"></i> Download</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TIMETABLE MANAGE (Admin Only) ================= -->
+        <div id="page-timetable-manage" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-calendar-alt"></i> Manage Timetable</h2><p>Admin only - Update the weekly timetable</p></div>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+                    <div>
+                        <h3 style="color:#0f172a;">Current Timetable</h3>
+                        <p class="text-muted" style="font-size:0.85rem;">Edit the timetable below. Changes will reflect for all students.</p>
+                    </div>
+                    <span class="badge-soft" style="background:#dc2626;color:white;">Admin Only</span>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="min-width:120px;">Time</th>
+                                <th>Monday</th>
+                                <th>Tuesday</th>
+                                <th>Wednesday</th>
+                                <th>Thursday</th>
+                                <th>Friday</th>
+                            </tr>
+                        </thead>
+                        <tbody id="timetableEditBody">
+                            <tr>
+                                <td><strong>09:00 - 10:30</strong></td>
+                                <td><input type="text" id="tt-mon-1" class="input-slim" style="width:100%;" value="DS (A-102)"></td>
+                                <td><input type="text" id="tt-tue-1" class="input-slim" style="width:100%;" value="NN (A-102)"></td>
+                                <td><input type="text" id="tt-wed-1" class="input-slim" style="width:100%;" value="DS (A-102)"></td>
+                                <td><input type="text" id="tt-thu-1" class="input-slim" style="width:100%;" value="NN (A-102)"></td>
+                                <td><input type="text" id="tt-fri-1" class="input-slim" style="width:100%;" value="DS (A-102)"></td>
+                            </tr>
+                            <tr>
+                                <td><strong>11:00 - 12:30</strong></td>
+                                <td><input type="text" id="tt-mon-2" class="input-slim" style="width:100%;" value="EH (Lab 402)"></td>
+                                <td><input type="text" id="tt-tue-2" class="input-slim" style="width:100%;" value="CD (LT-2)"></td>
+                                <td><input type="text" id="tt-wed-2" class="input-slim" style="width:100%;" value="EH (Lab 402)"></td>
+                                <td><input type="text" id="tt-thu-2" class="input-slim" style="width:100%;" value="CD (LT-2)"></td>
+                                <td><input type="text" id="tt-fri-2" class="input-slim" style="width:100%;" value="EH (Lab 402)"></td>
+                            </tr>
+                            <tr>
+                                <td><strong>02:00 - 03:30</strong></td>
+                                <td><input type="text" id="tt-mon-3" class="input-slim" style="width:100%;" value="CD (LT-2)"></td>
+                                <td><input type="text" id="tt-tue-3" class="input-slim" style="width:100%;" value="DS (A-102)"></td>
+                                <td><input type="text" id="tt-wed-3" class="input-slim" style="width:100%;" value="NN (A-102)"></td>
+                                <td><input type="text" id="tt-thu-3" class="input-slim" style="width:100%;" value="DS (A-102)"></td>
+                                <td><input type="text" id="tt-fri-3" class="input-slim" style="width:100%;" value="CD (LT-2)"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex mt-2" style="gap:1rem;flex-wrap:wrap;">
+                    <button class="btn btn-primary" id="saveTimetableBtn"><i class="fas fa-save"></i> Save Timetable Changes</button>
+                    <button class="btn btn-outline" id="resetTimetableBtn"><i class="fas fa-undo-alt"></i> Reset to Default</button>
+                    <span class="badge-success" id="timetableSaveStatus" style="display:none;">✅ Saved!</span>
+                </div>
+            </div>
+
+            <div class="card mt-2">
+                <div class="card-header">
+                    <h3><i class="fas fa-clock"></i> Add New Time Slot</h3>
+                    <span class="badge-soft">Admin</span>
+                </div>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+                    <div class="auth-input-group" style="flex:1;min-width:120px;">
+                        <label>Time Slot</label>
+                        <input type="text" id="newTimeSlot" class="input-slim" style="width:100%;" placeholder="e.g. 03:30 - 05:00">
+                    </div>
+                    <div class="auth-input-group" style="flex:1;min-width:100px;">
+                        <label>Monday</label>
+                        <input type="text" id="newMon" class="input-slim" style="width:100%;" placeholder="Subject (Room)">
+                    </div>
+                    <div class="auth-input-group" style="flex:1;min-width:100px;">
+                        <label>Tuesday</label>
+                        <input type="text" id="newTue" class="input-slim" style="width:100%;" placeholder="Subject (Room)">
+                    </div>
+                    <div class="auth-input-group" style="flex:1;min-width:100px;">
+                        <label>Wednesday</label>
+                        <input type="text" id="newWed" class="input-slim" style="width:100%;" placeholder="Subject (Room)">
+                    </div>
+                    <div class="auth-input-group" style="flex:1;min-width:100px;">
+                        <label>Thursday</label>
+                        <input type="text" id="newThu" class="input-slim" style="width:100%;" placeholder="Subject (Room)">
+                    </div>
+                    <div class="auth-input-group" style="flex:1;min-width:100px;">
+                        <label>Friday</label>
+                        <input type="text" id="newFri" class="input-slim" style="width:100%;" placeholder="Subject (Room)">
+                    </div>
+                    <button class="btn btn-primary" id="addTimeSlotBtn" style="margin-bottom:0.2rem;"><i class="fas fa-plus"></i> Add Slot</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-assignment-upload" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-file-arrow-up"></i> Assignments</h2><p>Upload assignments for students with a submission deadline</p></div>
+            <div class="grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom:1rem;">Upload New Assignment</h3>
+                    <div class="auth-input-group">
+                        <label>Assignment Title</label>
+                        <input type="text" id="faAssignTitle" class="input-slim" style="width:100%;" placeholder="e.g. Backpropagation Implementation">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Subject</label>
+                        <select id="faAssignSubject" class="input-slim" style="width:100%;">
+                            <option>Distributed Systems</option>
+                            <option>Data Structures</option>
+                            <option>Neural Networks</option>
+                            <option>Ethical Hacking</option>
+                            <option>Compiler Design</option>
+                        </select>
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Instructions / Description</label>
+                        <textarea id="faAssignDesc" class="input-slim" style="width:100%;min-height:90px;" placeholder="Describe what students need to do..."></textarea>
+                    </div>
+                    <div class="flex" style="gap:0.6rem;flex-wrap:wrap;">
+                        <div class="auth-input-group" style="flex:1;min-width:140px;">
+                            <label>Submission Due Date</label>
+                            <input type="date" id="faAssignDueDate" class="input-slim" style="width:100%;">
+                        </div>
+                        <div class="auth-input-group" style="flex:1;min-width:140px;">
+                            <label>Due Time</label>
+                            <input type="time" id="faAssignDueTime" class="input-slim" style="width:100%;">
+                        </div>
+                    </div>
+                    <div class="auth-input-group">
+                        <label>Attachment (optional)</label>
+                        <input type="file" id="faAssignFile" class="input-slim" style="width:100%;">
+                    </div>
+                    <button class="btn btn-primary" id="faAssignSubmitBtn" style="width:100%;justify-content:center;"><i class="fas fa-upload"></i> Upload Assignment</button>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-list-check"></i> My Uploaded Assignments</h3><span class="badge-soft" id="faAssignCount">0</span></div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Title</th><th>Subject</th><th>Due</th><th>Submissions</th><th></th></tr></thead>
+                            <tbody id="faAssignTableBody"><tr><td colspan="5" class="text-muted">No assignments yet. Upload one using the form.</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROFILE & SETTINGS -->
+        <div id="page-profile" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-user-gear"></i> Profile &amp; Settings</h2><p>Manage your account and preferences</p></div>
+            <div class="profile-header-card">
+                <div class="profile-avatar-wrap">
+                    <div class="profile-avatar-big" id="profileAvatarInitial">U</div>
+                    <label class="profile-avatar-edit-btn" for="profilePhotoInput" title="Change Photo"><i class="fas fa-camera"></i></label>
+                    <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;">
+                </div>
+                <div>
+                    <h2 id="profileNameDisplay" style="font-size:1.4rem;">User Name</h2>
+                    <p id="profileEmailDisplay" style="opacity:0.85;font-size:0.9rem;">user@soet.edu</p>
+                    <p id="profileRollDisplay" style="opacity:0.85;font-size:0.85rem;margin-top:2px;"></p>
+                    <span class="role-tag" id="profileRoleTag" style="margin-top:6px;display:inline-block;">ROLE</span>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <h3 style="margin-bottom:1rem;"><i class="fas fa-id-card"></i> Edit Profile</h3>
+                    <div class="auth-input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="profileNameInput" class="input-slim" style="width:100%;">
+                    </div>
+                    <div class="auth-input-group">
+                        <label>New Password (leave blank to keep current)</label>
+                        <input type="password" id="profilePasswordInput" class="input-slim" style="width:100%;" placeholder="••••••••">
+                    </div>
+                    <div class="flex" style="gap:0.6rem;">
+                        <button class="btn btn-primary" id="profileSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
+                        <button class="btn btn-outline" id="profileRemovePhotoBtn" type="button"><i class="fas fa-user-slash"></i> Remove Photo</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom:0.5rem;"><i class="fas fa-sliders"></i> Preferences</h3>
+                    <div class="settings-row">
+                        <span><i class="fas fa-moon"></i> Dark Mode</span>
+                        <label class="toggle-switch"><input type="checkbox" id="darkModeToggle"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="settings-row">
+                        <span><i class="fas fa-bell"></i> Email Notifications</span>
+                        <label class="toggle-switch"><input type="checkbox" id="emailNotifToggle" checked><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="settings-row">
+                        <span><i class="fas fa-language"></i> Language</span>
+                        <select class="input-slim" style="width:130px;"><option>English</option><option>Hindi</option></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= ADMIN PANEL (Fixed) ================= -->
+        <div id="page-admin-panel" class="page-content">
+            <div class="page-header"><h2><i class="fas fa-user-cog"></i> Admin Panel</h2><p>Manage administrators and users - Only admins can access this page</p></div>
+            
+            <!-- Admin Management -->
+            <div class="card" style="margin-bottom:1.5rem;border:2px solid #1e3a8a;">
+                <div class="card-header">
+                    <h3><i class="fas fa-users-cog" style="color:#1e3a8a;"></i> Manage Administrators</h3>
+                    <span class="badge-soft" style="background:#1e3a8a;color:white;">Admin Only</span>
+                </div>
+                
+                <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem;background:#f8fafc;padding:1.2rem;border-radius:16px;">
+                    <div style="flex:1;min-width:200px;">
+                        <label style="font-weight:600;font-size:0.85rem;color:#334155;">Email Address *</label>
+                        <input type="email" id="adminEmailInput" class="input-slim" style="width:100%;margin-top:4px;" placeholder="admin@email.com">
+                    </div>
+                    <div style="flex:1;min-width:180px;">
+                        <label style="font-weight:600;font-size:0.85rem;color:#334155;">Password *</label>
+                        <input type="password" id="adminPasswordInput" class="input-slim" style="width:100%;margin-top:4px;" placeholder="••••••••">
+                    </div>
+                    <div style="display:flex;align-items:flex-end;gap:0.8rem;flex-wrap:wrap;">
+                        <button class="btn btn-primary" id="addAdminBtn"><i class="fas fa-plus"></i> Add Admin</button>
+                        <button class="btn btn-outline" id="resetAdminBtn"><i class="fas fa-undo-alt"></i> Reset Default</button>
+                    </div>
+                </div>
+
+                <div id="adminListContainer" style="display:flex;flex-wrap:wrap;gap:0.6rem;"></div>
+            </div>
+
+            <!-- User Management -->
+            <div id="userManagementContainer"></div>
+
+            <div class="card mt-2" style="background:linear-gradient(135deg,#fef9e7,#fff8e7);border:1px solid #fde68a;">
+                <div class="card-header">
+                    <h3><i class="fas fa-info-circle" style="color:#b45309;"></i> Admin Instructions</h3>
+                </div>
+                <ul style="list-style:disc;padding-left:1.5rem;color:#475569;line-height:2;font-size:0.85rem;">
+                    <li><strong>Only existing admins</strong> can add new administrators.</li>
+                    <li>Each admin account requires both <strong>email</strong> and <strong>password</strong>.</li>
+                    <li><strong>Students</strong> registered via signup appear in the Students list and also in Faculty attendance/marks.</li>
+                    <li><strong>Faculty</strong> registered via signup appear in the Faculty list for admin management.</li>
+                    <li>Click the <strong>🗑️</strong> icon to remove any user (student or faculty).</li>
+                    <li>Default admin: <strong>admin@soet.edu</strong> / <strong>password123</strong></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            <i class="fas fa-robot"></i> SOET Connect · Complete Academic Management System
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="chatbot.js"></script>
+    <script src="dashboard-chatbot.js"></script>
+</body>
+</html>

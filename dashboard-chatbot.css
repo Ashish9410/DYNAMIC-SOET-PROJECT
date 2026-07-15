@@ -1,0 +1,336 @@
+/* ================= DASHBOARD AI CHATBOT ================= */
+/* This chatbot appears only inside the dashboard after login */
+
+#dashChatbotBtn {
+    position: fixed;
+    bottom: 100px;
+    right: 26px;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+    z-index: 5000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+#dashChatbotBtn:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.45);
+}
+#dashChatbotBtn .dash-cb-pulse {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 14px;
+    height: 14px;
+    background: #22c55e;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    animation: dashCbPulse 1.8s infinite;
+}
+@keyframes dashCbPulse {
+    0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.6); }
+    70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+
+#dashChatbotWindow {
+    position: fixed;
+    bottom: 170px;
+    right: 26px;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+    height: 520px;
+    max-height: calc(100vh - 200px);
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+    z-index: 5000;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+    pointer-events: none;
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#dashChatbotWindow.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: all;
+}
+
+.dash-cb-header {
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: #fff;
+    padding: 0.9rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-shrink: 0;
+}
+.dash-cb-header .dash-cb-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.dash-cb-header .dash-cb-title {
+    flex: 1;
+    min-width: 0;
+}
+.dash-cb-header .dash-cb-title h4 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin: 0;
+}
+.dash-cb-header .dash-cb-title span {
+    font-size: 0.68rem;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.dash-cb-header .dash-cb-title span::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: #22c55e;
+    border-radius: 50%;
+    display: inline-block;
+}
+.dash-cb-close {
+    background: rgba(255,255,255,0.12);
+    border: none;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.dash-cb-close:hover { background: rgba(255,255,255,0.25); }
+
+.dash-cb-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.9rem;
+    background: #f4f7fc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.dash-cb-body::-webkit-scrollbar { width: 4px; }
+.dash-cb-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+.dash-cb-msg {
+    max-width: 84%;
+    padding: 0.6rem 0.9rem;
+    border-radius: 14px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    animation: dashCbFadeIn 0.25s ease;
+    white-space: pre-line;
+}
+@keyframes dashCbFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.dash-cb-msg.bot {
+    background: #fff;
+    color: #1e293b;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.dash-cb-msg.user {
+    background: #1e3a8a;
+    color: #fff;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+.dash-cb-msg.bot strong { color: #1e3a8a; }
+.dash-cb-msg.bot a { color: #1e3a8a; text-decoration: underline; cursor: pointer; }
+.dash-cb-msg ul { margin: 4px 0 0 1.1rem; }
+.dash-cb-msg li { margin-bottom: 2px; }
+.dash-cb-msg .cmd-hint {
+    display: inline-block;
+    background: #eef3fe;
+    color: #1e3a8a;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.dash-cb-typing {
+    align-self: flex-start;
+    background: #fff;
+    padding: 0.6rem 0.9rem;
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.dash-cb-typing span {
+    width: 5px;
+    height: 5px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: dashCbBounce 1.2s infinite ease-in-out;
+}
+.dash-cb-typing span:nth-child(2) { animation-delay: 0.15s; }
+.dash-cb-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dashCbBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.dash-cb-quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 0 0.9rem 0.6rem;
+    background: #f4f7fc;
+    flex-shrink: 0;
+}
+.dash-cb-chip {
+    background: #eef3fe;
+    color: #1e3a8a;
+    border: 1px solid #dbe4fb;
+    padding: 0.35rem 0.7rem;
+    border-radius: 60px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+.dash-cb-chip:hover {
+    background: #1e3a8a;
+    color: #fff;
+    border-color: #1e3a8a;
+}
+
+.dash-cb-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.6rem 0.9rem;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+    flex-shrink: 0;
+}
+.dash-cb-input-row input {
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    background: #f4f7fc;
+    border-radius: 60px;
+    padding: 0.6rem 1rem;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border 0.2s;
+}
+.dash-cb-input-row input:focus { border-color: #1e3a8a; }
+.dash-cb-send-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #1e3a8a;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+.dash-cb-send-btn:hover { background: #172554; }
+.dash-cb-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Dark mode support */
+body.dark-mode #dashChatbotWindow {
+    background: #1e293b;
+}
+body.dark-mode .dash-cb-body {
+    background: #0f172a;
+}
+body.dark-mode .dash-cb-msg.bot {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+body.dark-mode .dash-cb-msg.user {
+    background: #1e3a8a;
+    color: #fff;
+}
+body.dark-mode .dash-cb-typing {
+    background: #1e293b;
+}
+body.dark-mode .dash-cb-typing span {
+    background: #64748b;
+}
+body.dark-mode .dash-cb-quick-replies {
+    background: #0f172a;
+}
+body.dark-mode .dash-cb-chip {
+    background: #1e293b;
+    color: #93c5fd;
+    border-color: #334155;
+}
+body.dark-mode .dash-cb-chip:hover {
+    background: #1e3a8a;
+    color: #fff;
+}
+body.dark-mode .dash-cb-input-row {
+    background: #1e293b;
+    border-color: #334155;
+}
+body.dark-mode .dash-cb-input-row input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+body.dark-mode .dash-cb-input-row input:focus {
+    border-color: #1e3a8a;
+}
+body.dark-mode .dash-cb-msg.bot .cmd-hint {
+    background: #1c2942;
+    color: #93c5fd;
+}
+
+@media (max-width: 480px) {
+    #dashChatbotWindow {
+        right: 12px;
+        left: 12px;
+        width: auto;
+        bottom: 160px;
+        height: 55vh;
+    }
+    #dashChatbotBtn {
+        right: 16px;
+        bottom: 90px;
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+}
